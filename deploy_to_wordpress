@@ -1,0 +1,227 @@
+#!/bin/bash
+
+source  .env
+
+MESSAGE=""
+RELEASE="1"
+MAJOR="0"
+MINOR="0"
+DRY="0"
+NOGIT="0"
+MAKEZIP="0"
+
+while [ $# -gt 0 ]
+do
+    arg=$1
+    shift
+    
+    if [[ "x$arg" = "x-s" ]]
+    then
+        RELEASE="0"
+    fi
+
+    if [[ "x$arg" = "x-v" ]]
+    then
+        RELEASE="1"
+        MINOR="1"
+    fi
+
+    if [[ "x$arg" = "x-r" ]]
+    then
+        RELEASE="1"        
+        MAJOR="1"
+    fi
+
+    if [[ "x$arg" = "x-m" ]]
+    then    
+        MESSAGE="$1"
+        shift
+    fi
+
+    if [[ "x$arg" = "x-n" ]]
+    then    
+        DRY="1"
+    fi
+
+    if [[ "x$arg" = "x-z" ]]
+    then    
+        MAKEZIP="1"
+    fi
+
+#    if [[ "x$arg" = "x-g" ]]
+#    then    
+#        NOGIT="1"
+#    fi
+
+    if [[ "x$arg" = "x-h" ]]
+    then
+        echo "Deploy to Wordpress script"
+        echo "Copyright (C) 2020 muis IT https://www.muisit.nl"
+        echo ""
+        echo "deploy_to_wordpress [options]"
+        echo ""
+#        echo "-g           no git version bump, version was set already"
+        echo "-h           print this help text"
+        echo "-m <msg>     specify commit message"
+        echo "-n           perform a dry-run, printing the raw commands"
+        echo "-r           release a major release (tag with major value upgraded)"
+        echo "-s           surpress releasing (only copy files, no commits)"
+        echo "-v           release a minor release (tag with minor value upgraded)"
+        echo "-z           create a zipfile that can be uploaded"
+        echo ""
+        echo "Add the WPDIR directory location of the destination SVN repository in the"
+        echo ".env file next to this script. Set the PROJECT variable to the name of"
+        echo "the project/plugin name/file containing the version number."
+        exit
+    fi
+done
+
+if [[ "x$DRY" = "x1" ]]
+then
+    echo "Dry-run, no execution"
+fi
+
+#if [[ "x$NOGIT" = "x1" && "x$MAJOR" = "x1" ]]
+#then
+#    echo "-g requires version in .Git to be leading, ignoring -r"
+#    MAJOR=0
+#fi
+#if [[ "x$NOGIT" = "x1" && "x$MINOR" = "x1" ]]
+#then
+#    echo "-g requires version in .Git to be leading, ignoring -v"
+#    MINOR=0
+#fi
+#if [[ "x$MAJOR" = "x1" && "x$MINOR" = "x1" ]]
+#then
+#    echo "Major release requires a minor version of 0, ignoring -v"
+#    MINOR="0"
+#fi
+
+if [[ "x$MESSAGE" = "x" && "x$RELEASE" = "x1" ]]
+then
+    echo "Message required for release"
+    exit
+fi
+
+VERSION=`grep "* Version" "$PROJECT.php" | sed 's/[^0-9]*\([0-9\.]*\).*/\1/'`
+MAJ=`echo $VERSION | sed 's/\([0-9]*\).*/\1/'`
+MIN=`echo $VERSION | sed 's/[0-9]*\.\([0-9]*\).*/\1/'`
+MICR=`echo $VERSION | sed 's/[0-9]*\.[0-9]*\.\([0-9]*\)/\1/'`
+
+if [[ "x1" == "x$MAJOR" ]]
+then
+    echo "Performing major release"
+    let "MAJ=$MAJ+1"
+    MIN="0"
+    MICR="0"
+else
+    if [[ "x1" = "x$MINOR" ]]
+    then
+        echo "Performing minor release"
+        let "MIN=$MIN+1"
+        MICR="0"
+    else
+        if [[ "x$NOGIT" = "x0" && "x$RELEASE" = "x1" ]]
+        then
+            echo "Performing micro release"
+            let "MICR=$MICR+1"
+        else
+            echo "Version defined by .Git"
+        fi
+    fi
+fi
+
+echo "Version ${MAJ}.${MIN}.${MICR}"
+
+if [[ "x$NOGIT" = "x0" ]]
+then
+    if [[ "x$DRY" = "x1" ]]
+    then
+        echo "cat \"$PROJECT.php\" | sed \"s/\(.*Version[ \t:]*\).*/\1${MAJ}.${MIN}.${MICR}/\" > tmp.$$"
+        echo "mv tmp.$$ \"$PROJECT.php\""
+        echo "cat \"package.json\" | sed \"s/\(.*version\\\"[ \t:]*\\\"\).*/\1${MAJ}.${MIN}.${MICR}\\\",/\" > tmp.$$"
+        echo "mv tmp.$$ \"package.json\""
+#        echo "git commit -m \"Version bump to ${MAJ}.${MIN}.${MICR}\""
+#        echo "git tag -a \"v${MAJ}.${MIN}.${MICR}\" -m \"Tagged version ${MAJ}.${MIN}.${MICR}\""
+#        echo "git push"
+    else
+        cat "$PROJECT.php" | sed "s/\(.*Version[ \t:]*\).*/\1${MAJ}.${MIN}.${MICR}/" > tmp.$$
+        mv tmp.$$ "$PROJECT.php"
+        cat "package.json" | sed "s/\(.*version\"[ \t:]*\"\).*/\1${MAJ}.${MIN}.${MICR}\",/" > tmp.$$
+        mv tmp.$$ "package.json"
+#        git commit -m "Version bump to ${MAJ}.${MIN}.${MICR}"
+#        git tag -a "v${MAJ}.${MIN}.${MICR}" -m "Tagged version ${MAJ}.${MIN}.${MICR}"
+#        git push
+    fi
+fi
+
+for i in `find ./ -type f -not -path ./.git/\* -not -name .gitignore -not -name .env -not -name deploy_to_wordpress -not -path ./assets/\* -not -path ./src`
+do
+    if [[ "x$DRY" = "x1" ]]
+    then
+        echo "cp -v $i $WPDIR/trunk"
+    else
+        cp -v $i $WPDIR/trunk
+    fi
+done
+
+for i in `find ./ -type f -path ./assets/\*`
+do
+    if [[ "x$DRY" = "x1" ]]
+    then
+        echo "cp -v $i $WPDIR/assets"
+    else
+        cp -v $i $WPDIR/assets
+    fi
+done
+
+if [[ "x$MAKEZIP" = "x1" ]]
+then
+    cd /tmp
+    cp -darpv $WPDIR/trunk /tmp/$PROJECT
+    zip -r $PROJECT $PROJECT
+    mv $PROJECT.zip $WPDIR/..
+    rm -rf /tmp/$PROJECT
+fi
+
+if [[ "x1" = "x$RELEASE" ]]
+then
+    echo "Releasing"
+    cd $WPDIR
+    svn status
+
+    if [[ "x$DRY" = "x1" ]]
+    then
+        echo "svn ci -m \"$MESSAGE\""
+    else
+        svn ci -m "$MESSAGE"
+    fi
+
+#    if [[ "x$MAJOR" = "x1" || "x$MINOR" = "x1" ]]
+#    then
+        NEWTAG="${MAJ}.${MIN}"
+        if [[ ! "x${MICR}" = "x0" ]]
+        then
+            NEWTAG="$NEWTAG.${MICR}"
+        fi
+        LASTTAG=`ls tags | sort -n | tail -1`
+        
+        echo "checking last tag $LASTTAG versus $NEWTAG"
+        if [[ "x$LASTTAG" = "x${NEWTAG}" ]]
+        then
+            echo "Tag already exists, bailing"
+            exit
+        fi
+
+        if [[ "x$DRY" = "x1" ]]
+        then
+            echo "svn cp trunk \"tags/${NEWTAG}\""
+            echo "svn ci -m \"Tagging ${NEWTAG}\""
+        else
+            svn cp trunk "tags/${NEWTAG}"
+            svn ci -m "Tagging ${NEWTAG}"
+        fi
+#    else
+#        echo "Micro version does not get a tag"
+#    fi
+fi
