@@ -308,6 +308,14 @@ class Validator {
                 break;
             }
             break;
+        case 'datetime': 
+            $value = $this->sanitize_datetime($value);
+            if($value === null) {
+                $retval=false;
+                if($msg === null) $msg = "{label} is not a date + time";
+                break;
+            }
+            break;
         case 'enum':
             $retval = in_array($value, $params);
             if($msg === null) $msg = "{label} should be one of ".json_encode($params);
@@ -391,6 +399,15 @@ class Validator {
             && is_numeric($value['year']) && $value['year']!==false
             && is_numeric($value['month']) && $value['month']!==false
             && is_numeric($value['day']) && $value['day']!==false;
+    }
+
+    protected function sanitize_datetime($date){
+        // we expect yyyy-mm-dd HH:MM:SS, but we'll let the strtotime function manage this
+        $ts = strtotime($date);
+        if($ts === false) {
+            return null;
+        }
+        return strftime('%F %T',$ts);
     }
 
 }

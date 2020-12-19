@@ -75,7 +75,7 @@ function wppresence_plugins_loaded() {
     error_log("wppresence loaded hook");
     require_once(__DIR__ . '/activate.php');
     $activator = new \WPPresence\Activator();
-    $activator->upgrade();
+    $activator->update();
 }
 
 function wppresence_ajax_handler($page) {
