@@ -151,11 +151,12 @@
         else {
             global $wpdb;
             if($this->isNew()) {
+                error_log("inserting new object in ".$this->table);
                 $wpdb->insert($wpdb->base_prefix . $this->table,$fieldstosave);
                 $this->{$this->pk} = $wpdb->insert_id;
             }
             else {
-//                error_log("calling update on ".$this->table." for ".json_encode($fieldstosave));
+                error_log("calling update on ".$this->table." for ".json_encode($fieldstosave));
                 $wpdb->update($wpdb->base_prefix . $this->table, $fieldstosave, array($this->pk => $this->{$this->pk}));
             }
         }
@@ -319,6 +320,12 @@
             return false;
         }
         return true;
+    }
+
+    public function loadModel($name) {
+        require_once(__DIR__ . "/".strtolower($name).".php");
+        $cname = "\\WPPresence\\".$name;
+        return $cname;
     }
 }
  

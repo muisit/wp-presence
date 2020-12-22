@@ -1,0 +1,10 @@
+@import 'primereact/resources/themes/saga-blue/theme.css';
+@import 'primereact/resources/primereact.min.css';
+@import 'primeicons/primeicons.css';
+@import 'primeflex/primeflex.css';
+
+
+.attribute { padding-left: 5px; }
+.attribute div.inputs > div { display: inline-block; }
+.attribute div.inputs { display:flex; padding-top: 2px; }
+.attribute div.inputs .actions { padding-top: 10px; }

@@ -38,7 +38,7 @@ HEREDOC;
         if (in_array($page, array("toplevel_page_wppresence"))) {
             $script = plugins_url('/dist/app.js', __FILE__);
             $this->enqueue_code($script);
-            wp_enqueue_style( 'evfranking', plugins_url('/dist/app.css', __FILE__), array(), '1.0.0' );
+            wp_enqueue_style( 'wppresence', plugins_url('/dist/app.css', __FILE__), array(), '1.0.0' );
         }
     }
 
@@ -49,10 +49,10 @@ HEREDOC;
         $dat = new \WPPresence\API();
         $nonce = wp_create_nonce($dat->createNonceText());
         wp_localize_script(
-            'evfranking',
-            'evfranking',
+            'wppresence',
+            'wppresence',
             array(
-                'url' => admin_url('admin-ajax.php?action=evfranking'),
+                'url' => admin_url('admin-ajax.php?action=wppresence'),
                 'nonce'    => $nonce,
             )
         );

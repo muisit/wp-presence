@@ -100,8 +100,8 @@ function wppresence_admin_menu() {
 	add_menu_page(
 		__( 'Presence' ),
 		__( 'Presence' ),
-		'manage_options',
-		'wppresence-settings',
+		'manage_wppresence',
+		'wppresence',
         'wppresence_display_admin_page',
         'dashicons-media-spreadsheet',
         100
@@ -110,7 +110,7 @@ function wppresence_admin_menu() {
 
 
 if (defined('ABSPATH')) {
-    register_activation_hook( __FILE__, 'wppresence_deactivate' );
+    register_activation_hook( __FILE__, 'wppresence_activate' );
     register_deactivation_hook( __FILE__, 'wppresence_deactivate' );
     register_uninstall_hook(__FILE__, 'wppresence_uninstall');
     add_action('upgrader_process_complete', 'wppresence_upgrade_function', 10, 2);
@@ -118,6 +118,6 @@ if (defined('ABSPATH')) {
 
     add_action( 'admin_enqueue_scripts', 'wppresence_enqueue_scripts' );
     add_action( 'admin_menu', 'wppresence_admin_menu' );
-    add_action('wp_ajax_evfranking', 'wppresence_ajax_handler');
-    add_action('wp_ajax_nopriv_evfranking', 'wppresence_ajax_handler');
+    add_action('wp_ajax_wppresence', 'wppresence_ajax_handler');
+    add_action('wp_ajax_nopriv_wppresence', 'wppresence_ajax_handler');
 }

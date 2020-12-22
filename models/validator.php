@@ -140,6 +140,11 @@ class Validator {
             return true;
         }
 
+        // if the rule is a method on the model, invoke it
+        if(method_exists($this->model, $rule)) {
+            return $this->model->$rule($this, $value,$ruleelements);
+        }
+
         $retval=true;
         switch($rule) {
         case 'required':
@@ -321,11 +326,10 @@ class Validator {
             if($msg === null) $msg = "{label} should be one of ".json_encode($params);
             break;
         case 'model':
-            require_once(__DIR__ . "/".strtolower($params[0]).".php");
+            $cname = $this->model->loadModel($params[0]);
             try {
                 $id=intval($value);
-                $name = "\\EVFRanking\\".$params[0];
-                $attrmodel = new $name($id);
+                $attrmodel = new $cname($id);
                 $attrmodel->load();
 
                 if($attrmodel->{$attrmodel->pk} != $id) {
@@ -340,8 +344,7 @@ class Validator {
             break;
         case 'contains':
             // value is a list of contained models
-            require_once(__DIR__ . "/".strtolower($params[0]).".php");
-            $name = "\\EVFRanking\\".$params[0];
+            $name = $this->model->loadModel($params[0]);
             try {
                 $lst=array();
                 foreach($value as $objvals) {

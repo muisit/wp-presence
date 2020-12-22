@@ -44,6 +44,10 @@
     public function activate() {
         update_option('wppresence_version', 'new');
         $this->update();
+
+        error_log("adding capability to role administrator");
+        $role = get_role( 'administrator' );
+        $role->add_cap( 'manage_wppresence', true );        
     }
 
     public function upgrade() {

@@ -31,12 +31,13 @@
     public function createNonceText() {
         $user = wp_get_current_user();        
         if(!empty($user)) {
-            return "evfranking".$user->ID;
+            return "wppresence".$user->ID;
         }
-        return "evfranking";
+        return "wppresence";
     }
 
     public function resolve() {
+        error_log("ajax resolver");
         $json = file_get_contents('php://input');
         $data = json_decode($json,true);
         error_log('resolving call: '.json_encode($data));
@@ -56,7 +57,7 @@
         $modeldata = isset($data['model']) ? $data['model'] : array();
         $offset = isset($modeldata['offset']) ? intval($modeldata['offset']) : 0;
         $pagesize = isset($modeldata['pagesize']) ? intval($modeldata['pagesize']) : 20;
-        $filter = isset($modeldata['filter']) ? $modeldata['filter'] : "";
+        $filter = isset($modeldata['filter']) ? $modeldata['filter'] : array();
         $sort = isset($modeldata['sort']) ? $modeldata['sort'] : "";
         $special = isset($modeldata['special']) ? $modeldata['special'] : "";
 
@@ -68,103 +69,31 @@
         if(!is_array($path) || sizeof($path) == 0) {
             $path=array("index");
         }
-        error_log('path is '.json_encode($path));
-        //error_log('data is '.json_encode($data));
+
         $retval=array();
         switch($path[0]) {
-            default:
-            case "index":
-                break;
-            // full-fledged CRUD
-            case "fencers":
-            case "countries":
-            case "results":
-            case "events":
-                switch($path[0]) {
-                    case 'fencers': $model = $this->loadModel("Fencer"); break;
-                    case 'countries': $model = $this->loadModel("Country"); break;
-                    case 'results': $model = $this->loadModel("Result"); break;
-                    case 'events': $model = $this->loadModel("Event"); break;
-                }
-                
-                if(isset($path[1]) && $path[1] == "save") {
-                    $retval=array_merge($retval, $this->save($model,$modeldata));
-                }
-                else if(isset($path[1]) && $path[1] == "delete") {
-                    $retval=array_merge($retval, $this->delete($model,$modeldata));
-                }
-                else if(isset($path[1]) && $path[1] == "competitions") {
-                    // list all competitions of events (event special action)
-                    $retval=array_merge($retval, $this->listResults($model, $model->competitions($modeldata['id']), null, TRUE));
-                }
-                else {
-                    $retval=array_merge($retval, $this->listAll($model,$offset,$pagesize,$filter,$sort,$special));
-                }
-                break;
-            // LIST and UPDATE
-            case "migrations":
-                switch($path[0]) {
-                    case 'migrations': $model = $this->loadModel("Migration"); break;
-                }
-                
-                if(isset($path[1]) && $path[1] == "save") {
-                    $retval=array_merge($retval, $this->save($model,$modeldata));
-                }
-                else {
-                    $retval=array_merge($retval, $this->listAll($model,$offset,$pagesize,$filter,$sort,$special));
-                }
-                break;
-            // for these we only support a listing functionality
-            case "weapons":
-            case "categories":
-            case "types":
-                switch($path[0]) {
-                    case 'weapons': $model = $this->loadModel("Weapon"); break;
-                    case 'categories': $model = $this->loadModel("Category"); break;
-                    case 'types': $model = $this->loadModel("EventType"); break;
-                }
-                $retval=array_merge($retval, $this->listAll($model,0,null,'','i',''));
-                break;
-            // special models
-            case 'ranking':
-                if(isset($path[1]) && $path[1] == "reset") {
-                    $model = $this->loadModel("Ranking"); 
-                    $total = $model->calculateRankings();
-                    $retval=array(
-                        "success" => TRUE,
-                        "total" => $total
-                    );
-                }
-                else if(isset($path[1]) && $path[1] == "list") {
-                    $model = $this->loadModel("Ranking");
-                    $cid = intval(isset($modeldata['category_id']) ? $modeldata['category_id'] : "-1");
-                    $catmodel = $this->loadModel("Category");
-                    $catmodel = $catmodel->get($cid);
-                    $wid = intval(isset($modeldata['weapon_id']) ? $modeldata['weapon_id'] : "-1");
-                    if($cid > 0 && $wid > 0) {
-                        $results = $model->listResults($wid,$catmodel);
-                        $retval=array(
-                            "success" => TRUE,
-                            "results" => $results
-                        );
-                    }
-                    else {
-                        $retval=array("error"=>"No category or weapon selected");
-                    }
-                }
-                else if(isset($path[1]) && $path[1] == "detail") {
-                    $model = $this->loadModel("Ranking");
-                    $cid = intval(isset($modeldata['category_id']) ? $modeldata['category_id'] : "-1");
-                    $wid = intval(isset($modeldata['weapon_id']) ? $modeldata['weapon_id'] : "-1");
-                    $fid = intval(isset($modeldata['id']) ? $modeldata['id'] : "-1");
-                    if($cid > 0 && $wid > 0 && $fid>0) {
-                        $retval = $model->listDetail($wid,$cid,$fid);
-                    }
-                    else {
-                        $retval=array("error"=>"No category or weapon selected");
-                    }
-                }
+        default:
+        case "index":
+            break;
+        // full-fledged CRUD
+        case "item":
+        case "eva":
+            switch($path[0]) {
+            case 'item': $model = $this->loadModel("Item"); break;
+            case 'eva': $model = $this->loadModel("EVA"); break;
             }
+                
+            if(isset($path[1]) && $path[1] == "save") {
+                $retval=array_merge($retval, $this->save($model,$modeldata));
+            }
+            else if(isset($path[1]) && $path[1] == "delete") {
+                $retval=array_merge($retval, $this->delete($model,$modeldata));
+            }
+            else {
+                $retval=array_merge($retval, $this->listAll($model,$offset,$pagesize,$filter,$sort,$special));
+            }
+            break;
+        }
 
         error_log("returning ".json_encode($retval));
         if(!isset($retval["error"])) {
@@ -243,7 +172,7 @@
         error_log('requiring model '.$name);
         require_once(__DIR__ . "/models/".strtolower($name).".php");
         error_log('instantiation');
-        $name="\\EVFRanking\\$name";
+        $name="\\WPPresence\\$name";
         return new $name();
     }
 }
