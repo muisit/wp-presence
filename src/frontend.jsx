@@ -1,8 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 
+import FrontEnd from '../components/frontendpage';
+
 document.addEventListener('DOMContentLoaded', function () {
 
-    ReactDOM.render(<div>Hello</div>, document.getElementById('wppresence-frontend'));
+    ReactDOM.render((<FrontEnd/>), document.getElementById('wppresence-frontend'));
 
 });

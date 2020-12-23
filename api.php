@@ -36,30 +36,39 @@
         return "wppresence";
     }
 
+    public function authenticate($nonce) {
+        error_log('checking nonce '.$nonce.' using '.$this->createNonceText());
+        $result = wp_verify_nonce( $nonce, $this->createNonceText() );
+        if(!($result === 1 || $result === 2)) {
+            error_log('die because nonce does not match');
+            die(403);
+        }
+
+        if( ! current_user_can( 'manage_wppresence' ) ) {
+            error_log("unauthenticated");
+            die(403);
+        }
+    }
+
     public function resolve() {
         error_log("ajax resolver");
         $json = file_get_contents('php://input');
         $data = json_decode($json,true);
         error_log('resolving call: '.json_encode($data));
 
-        if(empty($data) || !isset($data['nonce']) || !isset($data['path'])) {
-            error_log('die because no path nor nonce');
-            die(403);
-        }
-
-        error_log('checking nonce '.$data['nonce'].' using '.$this->createNonceText());
-        $result = wp_verify_nonce( $data['nonce'], $this->createNonceText() );
-        if(!($result === 1 || $result === 2)) {
-            error_log('die because nonce does not match');
+        if(empty($data) || !isset($data['path'])) {
+            error_log('die because no path');
             die(403);
         }
 
         $modeldata = isset($data['model']) ? $data['model'] : array();
+        error_log("modeldata is ".json_encode($modeldata));
         $offset = isset($modeldata['offset']) ? intval($modeldata['offset']) : 0;
         $pagesize = isset($modeldata['pagesize']) ? intval($modeldata['pagesize']) : 20;
         $filter = isset($modeldata['filter']) ? $modeldata['filter'] : array();
         $sort = isset($modeldata['sort']) ? $modeldata['sort'] : "";
         $special = isset($modeldata['special']) ? $modeldata['special'] : "";
+        $nonce = isset($data['nonce']) ? $data['nonce'] : null;
 
         $path=$data['path'];
         if(empty($path)) {
@@ -74,13 +83,57 @@
         switch($path[0]) {
         default:
         case "index":
+            // unsupported paths are unauthenticated
+            die(403);
+            break;
+        case "user":
+            // these paths are unauthenticated
+            if($path[1] == "login") {
+                $username = $modeldata["username"];
+                $password = $modeldata["password"];
+
+                $user = wp_get_current_user();
+                error_log("user is ".json_encode($user));
+                if( ! current_user_can( 'manage_wppresence' ) ) {
+                    error_log("trying authentication");
+                    $user = wp_signon(array("user_login"=>$username,"user_password"=>$password,"remember"=>true));
+                    if(! is_wp_error( $user ) ) {
+                        wp_set_current_user($user->ID);
+                    }
+                }
+
+                if ( current_user_can( 'manage_wppresence' ) ) {
+                    error_log("current user can manage presence");
+                    $retval=array("loggedin"=>true);
+                }
+                else {
+                    $retval["error"]="login failed";
+                }
+                error_log("returning ".json_encode($retval));
+            }
+            else if($path[1] == "logout") {
+                wp_logout();
+                $retval=array("success"=>true);
+            }
+            else if($path[1] == "session") {
+                if ( current_user_can( 'manage_wppresence' ) ) {
+                    $retval=array("loggedin"=>true, "nonce"=>wp_create_nonce($this->createNonceText()));
+                }
+                else {
+                    $retval["error"]="login failed";
+                }
+            }
             break;
         // full-fledged CRUD
         case "item":
         case "eva":
+        case "presence":
+            $this->authenticate($nonce);
+    
             switch($path[0]) {
             case 'item': $model = $this->loadModel("Item"); break;
             case 'eva': $model = $this->loadModel("EVA"); break;
+            case 'presence': $model = $this->loadModel("Presence"); break;
             }
                 
             if(isset($path[1]) && $path[1] == "save") {
@@ -89,13 +142,15 @@
             else if(isset($path[1]) && $path[1] == "delete") {
                 $retval=array_merge($retval, $this->delete($model,$modeldata));
             }
+            else if(isset($path[1]) && $path[1] == "mark") {
+                $model->mark($modeldata["model"]["id"],$modeldata["date"],empty($modeldata["checked"]) ? false: true, $modeldata['state']);
+            }
             else {
                 $retval=array_merge($retval, $this->listAll($model,$offset,$pagesize,$filter,$sort,$special));
             }
             break;
         }
 
-        error_log("returning ".json_encode($retval));
         if(!isset($retval["error"])) {
             wp_send_json_success($retval);
         }

@@ -15,10 +15,11 @@ const fieldToSorterList={
 export default class TemplateTab extends PagedTab {
     constructor(props, context) {
         super(props, context);
+        this.abortType="template";
     }
 
     apiCall = (o,p,f,s) => {
-        return api_list('template','item',{ sort: s, offset: o, pagesize: p, filter: { type:'template', name: f }});
+        return api_list(this.abortType,'item',{ sort: s, offset: o, pagesize: p, filter: { type:'template', name: f }});
     }
 
     fieldToSorter = (fld) => {
@@ -41,7 +42,7 @@ export default class TemplateTab extends PagedTab {
 
     onEdit = (event)=> {
         var item = Object.assign({},event.data);
-        api_list("template","eva",{filter: { item_id: item.id}})
+        api_list(this.abortType,"eva",{filter: { item_id: item.id}})
             .then((res) => {
                 if(res.data.list) {
                     item.attributes = res.data.list;
@@ -49,6 +50,12 @@ export default class TemplateTab extends PagedTab {
                 }
             });
         return false;
+    }
+
+    onSave = (item) => {
+        this.loadItemPage();
+        this.toast.show(this.toastMessage("save",item));
+        this.props.onChange();
     }
 
     renderDialog() {

@@ -1,11 +1,8 @@
 import { api_list, api_misc } from "./api.js";
 import { DataTable } from 'primereact/components/datatable/DataTable';
 import { Column } from 'primereact/components/column/Column';
-import { Dropdown } from 'primereact/dropdown';
-import { InputText } from 'primereact/inputtext';
-import { Paginator } from 'primereact/paginator';
-import { Toast } from 'primereact/toast';
 
+import GenericDialog from './dialogs/genericdialog';
 import React from 'react';
 import PagedTab from './pagedtab';
 
@@ -17,10 +14,11 @@ const fieldToSorterList={
 export default class GenericTab extends PagedTab {
     constructor(props, context) {
         super(props, context);
+        this.abortType=this.props.template.name;
     }
 
     apiCall = (o,p,f,s) => {
-        api_list('template','item',{ sort: s, offset: o, pagesize: p, filter: { type: this.props.template.name, name: f }});
+        return api_list(this.abortType,'item',{ sort: s, offset: o, pagesize: p, filter: { type: this.props.template.name, name: f}, special: "include_3" });
     }
 
     fieldToSorter = (fld) => {
@@ -39,21 +37,36 @@ export default class GenericTab extends PagedTab {
 
     onAdd = (event) => {
         var attrs=this.props.template.attributes.map((item) => {
+            var def=item.value;
+            if(item.type === 'enum') {
+                def=item.value.split(' ')[0];
+            }
             return {
                 id: -1,
                 name: item.name,
                 type: item.type,
-                value: ''
+                value: def
             }
         });
-        this.setState({item: {id:-1, type: this.props.template.name, attributes:attrs},displayDialog:true});
+        this.setState({item: {id:-1, type: this.props.template.name, state:'new',attributes:attrs},displayDialog:true});
+    }
+
+    onEdit = (event)=> {
+        var item = Object.assign({},event.data);
+        api_list(this.abortType,"eva",{filter: { item_id: item.id}})
+            .then((res) => {
+                if(res.data.list) {
+                    item.attributes = res.data.list;
+                    this.setState({item: item, displayDialog:true });
+                }
+            });
+        return false;
     }
 
     renderDialog() {
-          return (<div>Test</div>);
-//        return (
-//            <GenericDialog onClose={this.onClose} onChange={this.onChange} onSave={this.onSave} onDelete={this.onDelete} onLoad={this.onLoad} display={this.state.displayDialog} value={this.state.item} />
-//        );
+        return (
+            <GenericDialog onClose={this.onClose} onChange={this.onChange} onSave={this.onSave} onDelete={this.onDelete} onLoad={this.onLoad} display={this.state.displayDialog} value={this.state.item}  template={this.props.template} />
+        );
     }
 
     renderTable(pager) {
@@ -71,8 +84,14 @@ export default class GenericTab extends PagedTab {
             <Column field="id" header="ID" sortable={true} />
             <Column field="name" header="Name" sortable={true}/>
             <Column field="created" header="Created" sortable={true}/>
-            <Column field="modified" header="CModifiedreated" sortable={true}/>
+            <Column field="modified" header="Modified" sortable={true}/>
             <Column field="state" header="State" sortable={true}/>
+            {this.props.template && this.props.template.attributes && this.props.template.attributes.map((a,idx) => {
+                if(idx<3) {
+                    return (<Column field={"a" + (idx+1)} header={a.name} sortable={true} key={idx}/>);
+                }
+                return undefined;
+            })}
         </DataTable>);
     }
 }

@@ -42,8 +42,7 @@
     private $_action="select";
     public function delete() {
         if($this->_issub) return "";
-        $sql = strtoupper($this->_action)
-            ." ".$this->_from;
+        $sql = "DELETE FROM ".$this->_from;
 
         if(sizeof($this->_where_clauses)) {
             $first=true;
@@ -53,7 +52,7 @@
                     $sql.=" WHERE ".$c[1];
                 }
                 else {
-                    $sql .= $c[0] . ' '.$c[1];
+                    $sql .= " ".$c[0] . ' '.$c[1];
                 }
             }
         }
@@ -61,10 +60,30 @@
         return $this->_model->prepare($sql,$this->_where_values);
     }
 
+    public function insert() {
+        if($this->_issub) return "";
+        $sql = "INSERT INTO ".$this->_from;
+        
+        // no joins
+
+        $values=array();
+        $fields=array();
+        foreach($this->_select_fields as $f=>$n) {            
+            $id=uniqid();
+            $fields[]=$f;
+            $values[]="{".$id."}";
+            $this->_where_values[$id]=$n;
+        }
+        $sql.="(".implode(',',$fields) .") VALUES (".implode(',',$values).")";
+
+        // no complicated additional clauses
+        error_log("calling with where values ".json_encode($this->_where_values));
+        return $this->_model->prepare($sql,$this->_where_values);    
+    }
+
     public function update() {
         if($this->_issub) return "";
-        $sql = strtoupper($this->_action)
-            ." ".$this->_from;
+        $sql = "UPDATE ".$this->_from;
         
         if(sizeof($this->_joinclause)) {
             foreach($this->_joinclause as $jc) {
@@ -73,14 +92,13 @@
         }
 
         $sql.=" SET ";
-        $first=true;
+        $fields=array();
         foreach($this->_select_fields as $f=>$n) {
             $id=uniqid();
-            if(!$first) $sql.=", ";
-            $sql.=$n."={$id}";
-            $first=false;
+            $fields[]=$f."={$id}";
             $this->_where_values[$id]=$n;
         }
+        $sql.=implode(',',$fields);
 
         if(sizeof($this->_where_clauses)) {
             $first=true;
@@ -90,11 +108,10 @@
                     $sql.=" WHERE ".$c[1];
                 }
                 else {
-                    $sql .= $c[0] . ' '.$c[1];
+                    $sql .= " ".$c[0] . ' '.$c[1];
                 }
             }
         }
-
         return $this->_model->prepare($sql,$this->_where_values);
     }
 
@@ -104,11 +121,16 @@
         return intval($result[0]->cnt);
     }
 
+    public function first() {
+        // calling first on a sub-selection is not supported
+        if($this->_issub) return $this->_dosub();
+        return $this->_doget(true);
+    }
     public function get() {
         if($this->_issub) return $this->_dosub();
         return $this->_doget();
     }
-    private function _doget() {
+    private function _doget($dofirst=false) {
         error_log('query builder for get');
         $sql = strtoupper($this->_action)." "
             .implode(',', array_keys($this->_select_fields))
@@ -141,15 +163,20 @@
         if(sizeof($this->_orderbyclause)) {
             $sql.=" ORDER BY ".implode(',',$this->_orderbyclause);
         }
-        if(!empty($this->_limit) && intval($this->_limit) > 0) {
-            $sql .= " LIMIT ".intval($this->_limit);
+        if($dofirst) {
+            $sql .= " LIMIT 1";
         }
-        if(!empty($this->_offset) && !empty($this->_limit)) {
-            $sql .= " OFFSET ".intval($this->_offset);
+        else {
+            if(!empty($this->_limit) && intval($this->_limit) > 0) {
+                $sql .= " LIMIT ".intval($this->_limit);
+            }
+            if(!empty($this->_offset) && !empty($this->_limit)) {
+                $sql .= " OFFSET ".intval($this->_offset);
+            }
         }
 
         error_log('preparing '.$sql.' using '.json_encode($this->_where_values));
-        return $this->_model->prepare($sql,$this->_where_values);
+        return $this->_model->prepare($sql,$this->_where_values,$dofirst);
     }
 
     private function _dosub() {
@@ -169,10 +196,14 @@
         }
         $this->_model->_where_clauses[]=array('AND','('.$sql.')');
         $this->_model->_where_values=array_merge($this->_model->_where_values, $this->_where_values);
-        return $this->_model;
+        return $this;
     }
 
     private $_select_fields=array();
+    public function reselect($f=null) {
+        $this->_select_fields=array();
+        return $this->select($f);
+    }
     public function select($f=null) {
         $this->_action="select";
         if(empty($f)) {
@@ -196,7 +227,7 @@
         return $this;
     }
 
-    public function set($f,$v) {
+    public function set($f,$v=null) {
         if(empty($f)) {
             return $this;
         }
@@ -204,7 +235,7 @@
             $this->_select_fields[$f]=$v;
         }
         else if(is_array($f)) {
-            foreach(array_keys($f) as $n=>$v) {
+            foreach($f as $n=>$v) {
                 $this->_select_fields[$n]=$v;
             }
         }

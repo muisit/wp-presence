@@ -6,5 +6,37 @@
 
 .attribute { padding-left: 5px; }
 .attribute div.inputs > div { display: inline-block; }
-.attribute div.inputs { display:flex; padding-top: 2px; }
-.attribute div.inputs .actions { padding-top: 10px; }
+.attribute div.inputs { display:flex; align-items: center; padding-top: 2px; }
+.attribute div.inputs .input { padding: 0px 4px; }
+.attribute div.inputs .actions { }
+
+.generic .attribute { display: flex; align-items: center; }
+.generic .attribute label { padding: 2px; min-width: 6rem; }
+
+.templatebutton { display: block; width: 25vw;}
+
+.entry-content #wppresence-frontend .fullwidth { width: 100%; }
+
+.entry-content #wppresence-frontend ul {
+    list-style-type: none;
+    margin: 0 0 10px 0;
+}
+
+.entry-content #wppresence-frontend ul li {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+.entry-content #wppresence-frontend ul li.absent {
+    background-color: #ffaaaa;
+}
+
+.entry-content #wppresence-frontend ul li label {
+    margin-bottom: 0;
+    margin-left: 10px; 
+}
+.entry-content #wppresence-frontend ul li span.icon { margin-left:auto; }
+
+.entry-content #wppresence-frontend ul li span.icon a i { padding: 2px 4px; }
+

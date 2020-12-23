@@ -122,7 +122,6 @@
 
     private function read($values) {
         $values=(array)$values;
-        error_log("reading values ".json_encode($values));
         $this->_state = "reading";
         $values=(array)$values;
         foreach($this->fields as $fld) {
@@ -249,60 +248,69 @@
         $this->$key = $value;
     }
 
-    public function select($p=null) {
+    public function query() {
         require_once(__DIR__ . '/querybuilder.php');
         $qb=new QueryBuilder($this);
-        return $qb->from($this->table)->select($p);
+        return $qb->from($this->table);
+    }
+    public function select($p=null) {
+        return $this->query()->select($p);
     }
     public function numrows() {
         return $this->select('count(*) as cnt');
     }
 
-    public function prepare($query,$values) {
+    public function prepare($query,$values,$dofirst=false) {
         global $wpdb;
 
-        if(empty($values)) {
-            error_log("SQL: $query");
-            return $wpdb->get_results($query);
-        }
-
-        // find all the variables and replace them with proper markers based on the values
-        // then prepare the query
-        $pattern = "/{[a-f0-9]+}/";
-        $matches=array();
-        $replvals=array();
-        if(preg_match_all($pattern, $query, $matches)) {
-            error_log(json_encode($matches));
-            foreach($matches[0] as $m) {
-                $match=trim($m,'{}');
-                if(isset($values[$match])) {
-                    $v = $values[$match];
-                    if(is_float($v)) {
-                        $query=str_replace($m,"%f",$query);
-                        $replvals[]=$v;
-                    }
-                    else if(is_int($v)) {
-                        $query=str_replace($m,"%d",$query);
-                        $replvals[]=$v;
-                    }
-                    else if(is_null($v)) {
-                        $query=str_replace($m,"NULL",$query);
-                        $replvals[]=$v;
-                    }
-                    else {
-                        $query=str_replace($m,"%s",$query);
-                        $replvals[]="$v";
+        if(!empty($values)) {
+            // find all the variables and replace them with proper markers based on the values
+            // then prepare the query
+            $pattern = "/{[a-f0-9]+}/";
+            $matches=array();
+            $replvals=array();
+            if(preg_match_all($pattern, $query, $matches)) {
+                $keys=array_keys($values);
+                foreach($matches[0] as $m) {
+                    $match=trim($m,'{}');
+                    if(in_array($match,$keys)) {
+                        $v = $values[$match];
+                        if(is_float($v)) {
+                            $query=str_replace($m,"%f",$query);
+                            $replvals[]=$v;
+                        }
+                        else if(is_int($v)) {
+                            $query=str_replace($m,"%d",$query);
+                            $replvals[]=$v;
+                        }
+                        else if(is_null($v)) {
+                            $query=str_replace($m,"NULL",$query);
+                        }
+                        else {
+                            $query=str_replace($m,"%s",$query);
+                            $replvals[]="$v";
+                        }
                     }
                 }
             }
+
+            error_log("SQL: $query");
+            error_log("VAL: ".json_encode($replvals));
+            $query = $wpdb->prepare($query,$replvals);
+        }
+        else {
+            error_log("SQL: $query");
         }
 
-        error_log("SQL: $query");
-        error_log("VAL: ".json_encode($replvals));
-        $prepared = $wpdb->prepare($query,$replvals);
-        return $wpdb->get_results($prepared);
+        $results = $wpdb->get_results($query);
+        if($dofirst) {
+            if(is_array($results) && sizeof($results)>0) {
+                return $results[0];
+            }
+            return array();
+        }
+        return $results;
     }
-
 
     public function saveFromObject($obj) {
         //error_log('save from object using data '.json_encode($obj));

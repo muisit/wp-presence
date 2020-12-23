@@ -321,6 +321,9 @@ class Validator {
                 break;
             }
             break;
+        case 'json':
+            $value = json_encode($value);
+            break;
         case 'enum':
             $retval = in_array($value, $params);
             if($msg === null) $msg = "{label} should be one of ".json_encode($params);

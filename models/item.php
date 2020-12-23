@@ -31,6 +31,25 @@
     public $table = "wppres_item";
     public $pk="id";
     public $fields=array("id","name","type","created","creator","modified","modifier","state");
+    
+    // list all fields and include the special attributes list
+    public $fieldToExport = array(
+        "id" => "id",
+        "name" => "name",
+        "type" => "type",
+        "created" => "created",
+        "creator" => "creator",
+        "modified" => "modified",
+        "modifier" => "modifier",
+        "state" => "state",
+        // specials
+        "attributes" => "attributes",
+        "a1" => "a1",
+        "a2" => "a2",
+        "a3" => "a3",
+        "presence"=>"presence",
+    );
+
     public $rules=array(
         "id" => "skip",
         "name" => "required|trim|lte=255",
@@ -40,7 +59,13 @@
         "modified" => "skip",
         "modifier" => "skip",
         "state"=>"required|trim|lte=20",
-        "attributes"=> "contains=EVA,attributes_list"
+        // specials
+        "attributes"=> "contains=EVA,attributes_list",
+        "a1"=>"skip",
+        "a2"=>"skip",
+        "a3"=>"skip",
+        "presence"=>"skip",
+        "checked"=>"skip"
     );
 
     public function __construct($id=null) {
@@ -101,18 +126,18 @@
             $c=$sort[$i];
             switch($c) {
             default:
-            case 'i': $orderBy[]="id asc"; break;
-            case 'I': $orderBy[]="id desc"; break;
-            case 'n': $orderBy[]="name asc"; break;
-            case 'N': $orderBy[]="name desc"; break;
-            case 'c': $orderBy[]="created asc"; break;
-            case 'C': $orderBy[]="created desc"; break;
-            case 'm': $orderBy[]="modified asc"; break;
-            case 'M': $orderBy[]="modified desc"; break;
-            case 's': $orderBy[]="state asc"; break;
-            case 'S': $orderBy[]="state desc"; break;
-            case 't': $orderBy[]="type asc"; break;
-            case 'T': $orderBy[]="type desc"; break;
+            case 'i': $orderBy[]="i.id asc"; break;
+            case 'I': $orderBy[]="i.id desc"; break;
+            case 'n': $orderBy[]="i.name asc"; break;
+            case 'N': $orderBy[]="i.name desc"; break;
+            case 'c': $orderBy[]="i.created asc"; break;
+            case 'C': $orderBy[]="i.created desc"; break;
+            case 'm': $orderBy[]="i.modified asc"; break;
+            case 'M': $orderBy[]="i.modified desc"; break;
+            case 's': $orderBy[]="i.state asc"; break;
+            case 'S': $orderBy[]="i.state desc"; break;
+            case 't': $orderBy[]="i.type asc"; break;
+            case 'T': $orderBy[]="i.type desc"; break;
             }
         }
         return $orderBy;
@@ -121,29 +146,136 @@
     private function addFilter($qb, $filter) {
         if(isset($filter['name']) && !empty(trim($filter['name']))) {
             $name=str_replace("%","%%",trim($filter['name']));
-            $qb->where("name","like","%$name%");
+            $qb->where("i.name","like","%$name%");
         }
         if(isset($filter['type']) && !empty(trim($filter['type']))) {
             $name=trim($filter['type']);
-            $qb->where("type",$name);
+            $qb->where("i.type",$name);
         }
     }
 
     public function selectAll($offset=0,$pagesize=0,$filter=array(),$sort='', $special='') {
-        $qb = $this->select('*')->offset($offset)->limit($pagesize)->orderBy($this->addSort($sort));
+        $qb = $this->select('i.*')->from($this->table." i")->offset($offset)->limit($pagesize)->orderBy($this->addSort($sort));
         $this->addFilter($qb,$filter);
-        return $qb->get();
+        $specials=explode('/',$special);
+        error_log("specials is ".json_encode($specials));
+
+        $cname = $this->loadModel("EVA");
+        if(in_array("include_3",$specials)) {
+            // include the first three attributes of this template
+            // for that we need to get the template first
+            if(isset($filter["type"])) {
+                $item=$this->select('id')->where('type','template')->where('name',$filter['type'])->first();
+                error_log("template item is ".json_encode($item));
+                $model = new $cname();
+                $attrs = $model->attributes($item);
+
+                $a1=null;
+                $a2=null;
+                $a3=null;
+                if(sizeof($attrs) > 0) {
+                    $a1=$attrs[0]->name;
+                    if(sizeof($attrs)>1) {
+                        $a2=$attrs[1]->name;
+                        if(sizeof($attrs)>2) {
+                            $a3=$attrs[2]->name;
+                        }
+                    }
+                }
+
+                // by default, select empty values
+                $a1select="'' as a1";
+                $a2select="'' as a2";
+                $a3select="'' as a3";
+                if(!empty($a1)) {
+                    $qb->join("wppres_eva","a1","i.id=a1.item_id and a1.name='$a1'","left");
+                    $a1select="a1.value as a1";
+                }
+                if(!empty($a2)) {
+                    $qb->join("wppres_eva","a2","i.id=a2.item_id and a2.name='$a2'","left");
+                    $a2select="a2.value as a2";
+                }
+                if(!empty($a3)) {
+                    $qb->join("wppres_eva","a3","i.id=a3.item_id and a3.name='$a3'","left");
+                    $a3select="a3.value as a3";
+                }
+                $qb->select(array($a1select,$a2select,$a3select));
+            }
+        }
+
+        $withpresence = null;
+        foreach($specials as $special_str) {
+            if(strpos($special_str,"with presence") === 0) {
+                $withpresence = strftime('%F',strtotime(substr($special_str,14)));
+                error_log("joining presence on ".$withpresence);
+                $qb->join("wppres_presence","p","i.id=p.item_id and p.created='$withpresence'","left");
+                $qb->select("p.state as presence");
+            }
+        }
+
+        $results = $qb->get();
+
+        if(in_array("with attributes",$specials)) {            
+            error_log("loading additional attributes for each item");
+            // for each entry, load all the attributes as well
+            $cname = $this->loadModel("EVA");
+            $model = new $cname();
+
+            $retval = $results;
+            $results=array();
+            foreach($retval as $values) {
+                error_log("item is ".json_encode($values));
+                $values->attributes = $model->attributes($values->id,true);
+                $results[]=$values;
+            }
+        }
+
+        return $results;
     }
 
     public function count($filter=null) {
-        $qb=$this->numrows();
+        $qb=$this->numrows()->from($this->table." i");
         $this->addFilter($qb,$filter);
         return $qb->count();
     }
 
-    public function listAttributes() {
+    public function listAttributes($id=null,$export=false) {
+        if($id === null) $id=$this;
         $cname = $this->loadModel("EVA");
         $model = new $cname();
-        return $model->attributes($this);
+        return $model->attributes($id,$export);
+    }
+
+    public function mark($itemid,$date,$ispresent,$state) {
+        // always attempt to delete any existing element
+        if(!in_array($state,array("present","absent"))) {
+            $state="present";
+        }
+        $this->query()->from("wppres_presence")->where("item_id",$itemid)->where("created",$date)->delete();
+        $user = wp_get_current_user();
+        if($ispresent) {
+           $this->query()->from("wppres_presence")->set(array(
+               "item_id"=>$itemid,
+               "created" => $date,
+               "creator" => ($user && $user->ID) ? $user->ID : -1,
+               "state" => $state,
+               "remark" => null 
+           ))->insert();
+        }
+    }
+
+    public function saveFromObject($obj) {
+        if(!isset($obj['attributes'])) {
+            $attrs=$this->listAttributes($obj['id'],true);
+            $obj['attributes']=array();
+            foreach($attrs as $attr) {
+                if(isset($obj[$attr['name']])) {
+                    $attr['value']=$obj[$attr['name']];
+                    unset($obj[$attr['name']]);
+                }
+                $obj['attributes'][]=$attr;
+            }
+        }
+        return parent::saveFromObject($obj);
     }
 }

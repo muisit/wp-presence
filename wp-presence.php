@@ -107,6 +107,11 @@ function wppresence_admin_menu() {
         100
 	);
 }
+function wppresence_shortcode($atts) {
+    require_once(__DIR__ . '/display.php');
+    $actor = new \WPPresence\Display();
+    return $actor->shortCode("frontend",$atts);
+}
 
 
 if (defined('ABSPATH')) {
@@ -120,4 +125,6 @@ if (defined('ABSPATH')) {
     add_action( 'admin_menu', 'wppresence_admin_menu' );
     add_action('wp_ajax_wppresence', 'wppresence_ajax_handler');
     add_action('wp_ajax_nopriv_wppresence', 'wppresence_ajax_handler');
+    add_shortcode( 'wp-presence', 'wppresence_shortcode' );
+
 }

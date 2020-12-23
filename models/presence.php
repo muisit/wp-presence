@@ -28,7 +28,7 @@
  namespace WPPresence;
 
  class Presence extends Base {
-    public $table = "wppres_eva";
+    public $table = "wppres_presence";
     public $pk="id";
     public $fields=array("id","item_id","created","state","creator");
     public $rules=array(
@@ -64,18 +64,32 @@
         return $orderBy;
     }
 
-    private function addFilter($qb, $filter,$special) {
+    private function addFilter($qb, $filter,$specials) {
+        if(isset($filter["item_id"])) {
+            $qb->where("item_id",intval($filter["item_id"]));
+        }
+
+        foreach($specials as $special_str) {
+            if(strpos($special_str,"full presence") === 0) {
+                $withpresence = strftime('%F',strtotime(substr($special_str,14)));
+                error_log("selecting presence around ".$withpresence);
+                $qb->where("created",">",strftime("%F", strtotime($withpresence) - 29*24*60*60));
+                $qb->where("created","<=",strftime("%F", strtotime($withpresence) + 25*60*60));
+            }
+        }
     }
 
     public function selectAll($offset=0,$pagesize=0,$filter='',$sort='', $special='') {
         $qb = $this->select('*')->offset($offset)->limit($pagesize)->orderBy($this->addSort($sort));
-        $this->addFilter($qb,$filter);
+        $specials=explode('/',$special);
+        $this->addFilter($qb,$filter, $specials);
         return $qb->get();
     }
 
-    public function count($filter=null) {
+    public function count($filter=null, $special=null) {
         $qb=$this->numrows();
-        $this->addFilter($qb,$filter);
+        $specials=explode('/',$special);
+        $this->addFilter($qb,$filter,$specials);
         return $qb->count();
     }
 

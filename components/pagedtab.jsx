@@ -41,6 +41,8 @@ export default class PagedTab extends React.Component {
         this.setState({"loading":true });
         this.apiCall(this.state.offset,this.state.pagesize,this.state.filter,sorting)
             .then(json => {
+                if(!json) return;
+                
                 var maxpages = parseInt(Math.floor(json.data.total / this.state.pagesize));
                 if((maxpages * this.state.pagesize ) < json.data.total) {
                     maxpages+=1;

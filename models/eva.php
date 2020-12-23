@@ -37,7 +37,7 @@
         "name" => "required|trim|lte=255",
         "value" => "trim",
         "type" => "required|trim|lte=20",
-        "remark" => "trim",
+        "remark" => "json",
         "sorting" => "int",
         "modified" => "skip",
         "modifier" => "skip",
@@ -60,6 +60,16 @@
             $this->sorting=1;
         }
         return parent::save();        
+    }
+
+    public function export($result=null) {
+        $retval = parent::export($result);
+        error_log("exporting ".json_encode($retval));
+        if(isset($retval['remark'])) {
+            error_log("json decoding remark");
+            $retval['remark']=json_decode($retval['remark']);
+        }
+        return $retval;
     }
 
     private function addSort($sort) {
@@ -88,13 +98,19 @@
         return $qb->count();
     }
 
-    public function attributes($item) {
+    public function attributes($item,$export=false) {
         $id = is_object($item) ? $item->id : intval($item);
         $qb = $this->select('*')->where("item_id",$id)->orderBy($this->addSort("s"));
         $attrs=$qb->get();
         $retval=array();
         foreach($attrs as $a) {
-            $retval[]=new EVA($a);
+            $model = new EVA($a);
+            if($export) {
+                $retval[]=$model->export();
+            }
+            else {
+                $retval[]=$model;
+            }
         }
         return $retval;
     }

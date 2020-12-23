@@ -3,6 +3,7 @@ import { api_misc, ap_misc } from "../api.js";
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { Dropdown } from 'primereact/dropdown';
+import { Checkbox } from 'primereact/checkbox';
 import { InputText } from 'primereact/inputtext';
 
 export default class TemplateDialog extends React.Component {
@@ -11,6 +12,7 @@ export default class TemplateDialog extends React.Component {
         this.state = {
             old_status:-1
         }
+        this.abortType='template';
     }
 
     loading = (state) => {
@@ -35,7 +37,7 @@ export default class TemplateDialog extends React.Component {
         this.loading(true);
 
         console.log('saving ',this.props.value);
-        api_misc('templates','item','save',this.props.value)
+        api_misc(this.abortType,'item','save',this.props.value)
             .then((json) => {
                 this.loading(false);
                 this.save(this.props.value);
@@ -88,7 +90,13 @@ export default class TemplateDialog extends React.Component {
                     }
                     else {
                         var newitem=Object.assign({},item);
-                        newitem[field] = value;
+                        if(field == "groupBy") {
+                            newitem['remark'] = Object.assign({},newitem['remarks']);
+                            newitem['remark'].groupBy=value;
+                        }
+                        else {
+                            newitem[field] = value;
+                        }
                         return newitem;
                     }
                 }
@@ -127,7 +135,7 @@ export default class TemplateDialog extends React.Component {
     onDeleteDialog = (event) => {
         if(confirm('Are you sure you want to delete template '+ this.props.value.name + "? This action cannot be undone!")) {
             this.loading(true);
-            api_misc('templates','item','delete',{ id: this.props.value.id})
+            api_misc(this.abortType,'item','delete',{ id: this.props.value.id})
             .then((json) => {
                 this.loading(false);
                 this.delete();
@@ -189,6 +197,10 @@ export default class TemplateDialog extends React.Component {
             </div>
             <div className='input'>
               <InputText name={'default'+idx} value={attr.value} onChange={(e) => this.onChangeAttr('set','value', attr,idx,e.target.value)} placeholder='Default'/>
+            </div>
+            <div className='input'>
+              <Checkbox inputId={'group'+idx} checked={attr.remark && attr.remark.groupBy} onChange={(e) => this.onChangeAttr('set','groupBy', attr,idx,e.checked)}/>
+              <label htmlFor={'group'+idx}>Grp</label>
             </div>
             <div className='actions'>
               <i className="pi pi-trash pi-mr-2" onClick={(e) => this.onChangeAttr('delete','', attr,idx,'')}></i>
