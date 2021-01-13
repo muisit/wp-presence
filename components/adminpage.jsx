@@ -11,7 +11,7 @@ export default class AdminPage extends React.Component {
         super(props, context);
         this.state = {
             templates: [],
-            view_fe:true
+            view_fe:false
         };
     }
     componentDidMount = () => {

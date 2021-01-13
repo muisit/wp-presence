@@ -220,8 +220,13 @@
             $this->_select_fields[$f]=true;
         }
         else if(is_array($f)) {
-            foreach(array_keys($f) as $n) {
-                $this->_select_fields[$n]=true;
+            foreach($f as $k=>$v) {
+                if(is_numeric($k)) {
+                    $this->_select_fields[$v]=true;
+                }
+                else {
+                    $this->_select_fields[$k] = true;
+                }
             }
         }
         return $this;

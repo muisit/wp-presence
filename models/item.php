@@ -155,6 +155,7 @@
     }
 
     public function selectAll($offset=0,$pagesize=0,$filter=array(),$sort='', $special='') {
+        $filter=(array) $filter;
         $qb = $this->select('i.*')->from($this->table." i")->offset($offset)->limit($pagesize)->orderBy($this->addSort($sort));
         $this->addFilter($qb,$filter);
         $specials=explode('/',$special);
@@ -162,14 +163,15 @@
 
         $cname = $this->loadModel("EVA");
         if(in_array("include_3",$specials)) {
+            error_log("include_3 for ".json_encode($filter));
             // include the first three attributes of this template
             // for that we need to get the template first
-            if(isset($filter["type"])) {
+            if(isset($filter["type"])) {                
                 $item=$this->select('id')->where('type','template')->where('name',$filter['type'])->first();
                 error_log("template item is ".json_encode($item));
                 $model = new $cname();
                 $attrs = $model->attributes($item);
-
+                //error_log("attributes is ".json_encode($attrs));
                 $a1=null;
                 $a2=null;
                 $a3=null;
@@ -182,7 +184,7 @@
                         }
                     }
                 }
-
+                error_log("attrs $a1 $a2 $a3");
                 // by default, select empty values
                 $a1select="'' as a1";
                 $a2select="'' as a2";

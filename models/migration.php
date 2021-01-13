@@ -238,7 +238,7 @@ class MigrationObject extends Migration
         return new Migration();
     }
 
-    public function query($txt) {
+    public function rawQuery($txt) {
         global $wpdb;
         return $wpdb->query($txt);
     }

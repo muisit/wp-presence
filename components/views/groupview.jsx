@@ -1,7 +1,5 @@
 import React from 'react';
-import { api_list, api_misc } from "./api.js";
-import { Button } from 'primereact/button';
-import { Calendar } from 'primereact/calendar';
+import { api_misc } from "../api.js";
 import { Checkbox } from 'primereact/checkbox';
 
 export default class GroupView extends React.Component {

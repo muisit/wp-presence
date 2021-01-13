@@ -1,10 +1,9 @@
 import React from 'react';
 import { api_list, api_misc } from "./api.js";
 import { Button } from 'primereact/button';
-import { Calendar } from 'primereact/calendar';
-import GroupView from './groupview';
 import PresenceView from './presenceview';
 import ElementView from './elementview';
+import GroupedItemView from './views/groupeditemview'
 
 export default class FrontendView extends React.Component {
     constructor(props, context) {
@@ -24,7 +23,7 @@ export default class FrontendView extends React.Component {
         this.abortType='frontend';
     }
     componentDidMount = () => {
-        api_list(this.abortType,'item',{ filter: { type:'template' }, special: "with attributes"})
+        api_list(this.abortType,'item',{ pagesize: 0, filter: { type:'template' }, special: "with attributes"})
             .then((res) => {
                 if(res.data.list) {
                     this.setState({templates: res.data.list});
@@ -80,7 +79,7 @@ export default class FrontendView extends React.Component {
 
     show = (item) => {
         var dt=this.state.date;
-        api_list(this.abortType,'item',{ filter: { type: item.name }, special: "with attributes/with presence "+dt})
+        api_list(this.abortType,'item',{ pagesize: 0, filter: { type: item.name }, special: "with attributes/with presence "+dt})
             .then((res) => {
                 // see if we have a sorter in the templates
                 var sortBy=[];
@@ -201,6 +200,10 @@ export default class FrontendView extends React.Component {
             });
     }
 
+    showEntryDialog = () => {
+
+    }
+
     changeDate = (e) => {
         var dt=new Date(e.target.value);
         dt = dt.getFullYear() + "-" + (1+dt.getMonth()) + "-" + dt.getDate();
@@ -212,6 +215,11 @@ export default class FrontendView extends React.Component {
     onChangePresence = (itemsById) => {
         this.setState({itemsById: itemsById, presence_list: null});
     }    
+
+    addToList = (item) => {
+        // add the item to the list, causing a re-render
+        this.show(this.state.template);
+    }
 
     render() {
         if(this.state.item) {
@@ -227,7 +235,6 @@ export default class FrontendView extends React.Component {
             );
         }
         else if(this.state.show_list) {
-            console.log("displaying presence view");
             return (
                 <div className='container'>
                   <div className='calendar row'>
@@ -240,24 +247,18 @@ export default class FrontendView extends React.Component {
             );
         }
         else if(this.state.template && this.state.items) {
-            return (
-              <div className='container'>
-                <div className='row'>
-                  <div className='col-6 offset-md-3 col-md-3'>
-                    <Button label="Terug" className="p-button-raised p-button-text fullwidth" onClick={()=>this.setState({template:null,items:[],itemsById:{}})} />
-                  </div>
-                  <div className='col-6 col-md-3'>
-                    <Button label="Lijst" className="p-button-raised p-button-text fullwidth" onClick={this.showPresenceList} />
-                  </div>
-                </div>
-                <div className='row'>
-                  <div className='col-12 offset-md-3 col-md-6'>
-                    <Calendar className='fullwidth' appendTo={document.body} onChange={this.changeDate} dateFormat="yy-mm-dd" value={new Date(this.state.date)}></Calendar><br/>
-                    <GroupView showElement={this.showElement} date={this.state.date} template={this.state.template} group={this.state.items} byId={this.state.itemsById} idx='' onChange={this.onChangePresence}/>
-                  </div>
-                </div>
-              </div>
-            );
+            return (<GroupedItemView 
+                onBack={() => this.setState({ template: null, items: [], itemsById: {} })} 
+                onList={this.showPresenceList} 
+                date={this.state.date} 
+                onChangeDate={this.changeDate}
+                onChangePresence={this.onChangePresence}
+                onNewElement={this.addToList}
+                onShowElement={this.showElement}
+                template={this.state.template}
+                group={this.state.items} 
+                byId={this.state.itemsById}
+                />);
         }
         return (
             <div className='container'>

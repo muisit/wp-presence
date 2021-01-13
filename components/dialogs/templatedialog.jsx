@@ -62,7 +62,7 @@ export default class TemplateDialog extends React.Component {
     }    
 
     onChangeEl = (event) => {
-        if(!event.target || !event.target.value) return;
+        if(!event.target) return;
         var item=Object.assign({},this.props.value);
         switch(event.target.name) {
         case 'name': item[event.target.name] = event.target.value; break;

@@ -41,6 +41,15 @@ export default class GenericTab extends PagedTab {
             if(item.type === 'enum') {
                 def=item.value.split(' ')[0];
             }
+            else if(item.type == 'int') {
+                def=0;
+            }
+            else if(item.type =='year') {
+                def=2000;
+            }
+            else if(item.type == 'number') {
+                def=0.0;
+            }
             return {
                 id: -1,
                 name: item.name,

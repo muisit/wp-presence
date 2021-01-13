@@ -40,3 +40,14 @@
 
 .entry-content #wppresence-frontend ul li span.icon a i { padding: 2px 4px; }
 
+#wppresence-frontend div.container div.row button.p-button.floataction {
+    right: 20px;
+    bottom: 20px;
+    position: fixed;
+    width: 4rem;
+    height: 4rem;
+}
+
+.floataction span.pi {
+    font-size: 2em;
+}

@@ -9,6 +9,7 @@ MINOR="0"
 DRY="0"
 NOGIT="0"
 MAKEZIP="0"
+SVN="0"
 
 while [ $# -gt 0 ]
 do
@@ -18,6 +19,11 @@ do
     if [[ "x$arg" = "x-s" ]]
     then
         RELEASE="0"
+    fi
+
+    if [[ "x$arg" = "x-q" ]]
+    then
+        SVN="1"
     fi
 
     if [[ "x$arg" = "x-v" ]]
@@ -64,6 +70,7 @@ do
         echo "-h           print this help text"
         echo "-m <msg>     specify commit message"
         echo "-n           perform a dry-run, printing the raw commands"
+        echo "-q           SVN commits"
         echo "-r           release a major release (tag with major value upgraded)"
         echo "-s           surpress releasing (only copy files, no commits)"
         echo "-v           release a minor release (tag with minor value upgraded)"
@@ -79,6 +86,9 @@ done
 if [[ "x$DRY" = "x1" ]]
 then
     echo "Dry-run, no execution"
+else
+    # perform a production build before we deploy
+    npm run build
 fi
 
 #if [[ "x$NOGIT" = "x1" && "x$MAJOR" = "x1" ]]
@@ -97,11 +107,11 @@ fi
 #    MINOR="0"
 #fi
 
-if [[ "x$MESSAGE" = "x" && "x$RELEASE" = "x1" ]]
-then
-    echo "Message required for release"
-    exit
-fi
+#if [[ "x$MESSAGE" = "x" && "x$RELEASE" = "x1" ]]
+#then
+#    echo "Message required for release"
+#    exit
+#fi
 
 VERSION=`grep "* Version" "$PROJECT.php" | sed 's/[^0-9]*\([0-9\.]*\).*/\1/'`
 MAJ=`echo $VERSION | sed 's/\([0-9]*\).*/\1/'`
@@ -155,16 +165,18 @@ then
     fi
 fi
 
-for i in `find ./ -type f -not -path ./.git/\* -not -name .gitignore -not -name .env -not -name deploy_to_wordpress -not -path ./assets/\* -not -path ./src`
+mkdir -p $WPDIR/trunk
+for i in *.php ./dist LICENSE ./models README.md readme.txt
 do
     if [[ "x$DRY" = "x1" ]]
     then
-        echo "cp -v $i $WPDIR/trunk"
+        echo "cp -r -v $i $WPDIR/trunk"
     else
-        cp -v $i $WPDIR/trunk
+        cp -r -v $i $WPDIR/trunk
     fi
 done
 
+mkdir -p $WPDIR/assets
 for i in `find ./ -type f -path ./assets/\*`
 do
     if [[ "x$DRY" = "x1" ]]
@@ -186,42 +198,45 @@ fi
 
 if [[ "x1" = "x$RELEASE" ]]
 then
-    echo "Releasing"
-    cd $WPDIR
-    svn status
-
-    if [[ "x$DRY" = "x1" ]]
+    if [[ "x1" = "x$SVN" ]]
     then
-        echo "svn ci -m \"$MESSAGE\""
-    else
-        svn ci -m "$MESSAGE"
-    fi
-
-#    if [[ "x$MAJOR" = "x1" || "x$MINOR" = "x1" ]]
-#    then
-        NEWTAG="${MAJ}.${MIN}"
-        if [[ ! "x${MICR}" = "x0" ]]
-        then
-            NEWTAG="$NEWTAG.${MICR}"
-        fi
-        LASTTAG=`ls tags | sort -n | tail -1`
-        
-        echo "checking last tag $LASTTAG versus $NEWTAG"
-        if [[ "x$LASTTAG" = "x${NEWTAG}" ]]
-        then
-            echo "Tag already exists, bailing"
-            exit
-        fi
+        echo "Releasing"
+        cd $WPDIR
+        svn status
 
         if [[ "x$DRY" = "x1" ]]
-        then
-            echo "svn cp trunk \"tags/${NEWTAG}\""
-            echo "svn ci -m \"Tagging ${NEWTAG}\""
+            then
+            echo "svn ci -m \"$MESSAGE\""
         else
-            svn cp trunk "tags/${NEWTAG}"
-            svn ci -m "Tagging ${NEWTAG}"
+            svn ci -m "$MESSAGE"
         fi
-#    else
-#        echo "Micro version does not get a tag"
-#    fi
+
+#       if [[ "x$MAJOR" = "x1" || "x$MINOR" = "x1" ]]
+#       then
+            NEWTAG="${MAJ}.${MIN}"
+            if [[ ! "x${MICR}" = "x0" ]]
+            then
+                NEWTAG="$NEWTAG.${MICR}"
+            fi
+            LASTTAG=`ls tags | sort -n | tail -1`
+        
+            echo "checking last tag $LASTTAG versus $NEWTAG"
+            if [[ "x$LASTTAG" = "x${NEWTAG}" ]]
+            then
+                echo "Tag already exists, bailing"
+                exit
+            fi
+
+            if [[ "x$DRY" = "x1" ]]
+            then
+                echo "svn cp trunk \"tags/${NEWTAG}\""
+                echo "svn ci -m \"Tagging ${NEWTAG}\""
+            else
+                svn cp trunk "tags/${NEWTAG}"
+                svn ci -m "Tagging ${NEWTAG}"
+            fi
+#       else
+#            echo "Micro version does not get a tag"
+#       fi
+    fi
 fi
