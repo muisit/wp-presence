@@ -70,8 +70,8 @@
 
         foreach($allmigrations as $model) {
             $dbmodel = $model->find();
-            error_log(json_encode($dbmodel->export()));
-            error_log("migration " . $dbmodel->name . " has status " . $dbmodel->status);
+            //error_log(json_encode($dbmodel->export()));
+            //error_log("migration " . $dbmodel->name . " has status " . $dbmodel->status);
             if(intval($dbmodel->status) == 0) {
                 $retval = $this->execute($dbmodel,$model);
                 if($retval !== 1) {

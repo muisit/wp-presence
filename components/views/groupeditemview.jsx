@@ -3,6 +3,7 @@ import { Button } from 'primereact/button';
 import { Calendar } from 'primereact/calendar';
 import GroupView from './groupview';
 import GenericDialog from '../dialogs/genericdialog';
+import { create_attributes_from_template } from '../functions';
 
 export default class GroupedItemView extends React.Component {
     constructor(props, context) {
@@ -28,28 +29,7 @@ export default class GroupedItemView extends React.Component {
     }
 
     showEntryDialog = () => {
-        var attrs = this.props.template.attributes.map((item) => {
-            var def = item.value;
-            if (item.type === 'enum') {
-                def = item.value.split(' ')[0];
-            }
-            else if (item.type == 'int') {
-                def = 0;
-            }
-            else if (item.type == 'year') {
-                def = 2000;
-            }
-            else if (item.type == 'number') {
-                def = 0.0;
-            }
-            return {
-                id: -1,
-                name: item.name,
-                type: item.type,
-                value: def
-            }
-        });
-        console.log('adding new item with attributes ',attrs)
+        var attrs = create_attributes_from_template(this.props.template);
         this.setState({ item: { id: -1, name: '', type: this.props.template.name, state: 'new', attributes: attrs }, displayDialog: true });
     }
 
@@ -66,7 +46,7 @@ export default class GroupedItemView extends React.Component {
                     </div>
                     <div className='row'>
                         <div className='col-12 offset-md-3 col-md-6'>
-                            <Calendar className='fullwidth' appendTo={document.body} onChange={this.onChangeDate} dateFormat="yy-mm-dd" value={new Date(this.props.date)}></Calendar><br />
+                            <Calendar className='fullwidth' appendTo={document.body} onChange={this.props.onChangeDate} dateFormat="yy-mm-dd" value={new Date(this.props.date)}></Calendar><br />
                             <GroupView showElement={this.props.onShowElement} date={this.props.date} template={this.props.template} group={this.props.group} byId={this.props.byId} idx='' onChange={this.props.onChangePresence} />
                             <Button icon="pi pi-plus" className="floataction p-button-rounded p-button-help" onClick={this.showEntryDialog} />
                             <GenericDialog width='100vw' onClose={this.onClose} onChange={this.onChange} onSave={this.onSave} onlyAdd={true} display={this.state.displayDialog} value={this.state.item} template={this.props.template} />

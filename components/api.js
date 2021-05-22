@@ -60,7 +60,7 @@ function validFetch(cnt, path, pdata, options, headers = {}) {
 }
 
 function fetchJson(cnt,path, data={}, options = {}, headers = {}) {
-    console.log('valid fetch using data '+JSON.stringify(data));
+    //console.log('valid fetch using data '+JSON.stringify(data));
     return validFetch(cnt,path, data, options, headers);
 }
 

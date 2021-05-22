@@ -60,6 +60,10 @@
         }
     }
 
+    public function getKey() {
+        return $this->{$this->pk};
+    }
+
     public function setKey($id=null) {
         if($id === null) {
             $id=-1;
@@ -199,13 +203,13 @@
     }
 
     private function differs($field) {
-        if(!isset($this->$field)) {
+        if (!property_exists($this, $field)) {
             return false; // unset fields are never different
         }
-        if($field === $this->pk && (!$this->isNew() || $this->{$this->pk} <=0)) {
+        if ($field === $this->pk && (!$this->isNew() || $this->{$this->pk} <= 0)) {
             return false; // cannot reset the PK
         }
-        if(!isset($this->_ori_fields[$field])) {
+        if (!isset($this->_ori_fields[$field])) {
             return true; // no original found, so always different
         }
 
@@ -220,7 +224,12 @@
             $original=floatval($original);
             return abs($value-$original) > 0.000000001;
         }
-        return strcmp($value,$original) != 0;
+        // if we have a null-allowed field and it is filled/cleared, always differs
+        if(  ($value === null && $original !== null)
+          || ($original === null && $value !== null)) {
+            return true;
+        }
+        return strcmp(strval($value),$original) != 0;
     }
 
     public function delete($id=null)

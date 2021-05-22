@@ -6,6 +6,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { InputText } from 'primereact/inputtext';
 import { InputNumber } from 'primereact/inputnumber';
 import { Calendar } from 'primereact/calendar';
+import { find_value_of_attribute, attribute_by_name, create_attribute_from_template } from './../functions';
 
 export default class GenericDialog extends React.Component {
     constructor(props, context) {
@@ -78,27 +79,34 @@ export default class GenericDialog extends React.Component {
         if (this.props.onChange) this.props.onChange(item);
     }
 
-    onChangeAttr = (field,attr,newidx,e) => {
+    onChangeAttr = (attr,e) => {
         var value = e.value || e.target.value;
-        console.log("onChangeAttr ",field,attr.name,value);
-        console.log(this.props.value.attributes);
-        var newattrs = this.props.value.attributes.map((item,idx) => {
-            if(idx === newidx) {
-                console.log("setting value for index "+newidx + " named " + item.name);
-                var newitem=Object.assign({},item);
+        var abyname=attribute_by_name(this.props.value.attributes);
+
+        var newattrs = this.props.template.attributes.map((item) => {
+            console.log("finding attribute ",item.name);
+            var newitem = abyname[item.name];
+            if(item.name == attr.name) {
+                console.log("replacing item with new value");
+                newitem=Object.assign({},newitem);
                 if(attr.type=='date') {
                     var dt=new Date(value);
                     value = dt.getFullYear() + "-" + ((dt.getMonth() < 9) ? '0' : '') + (dt.getMonth()+1) + "-" + ((dt.getDate() < 10) ? '0':'') + dt.getDate();
                 }
-                newitem[field] = value;
-                return newitem;
+                newitem.value = value;
             }
-            return Object.assign({},item);
+            else {
+                console.log("keeping original item from ",newitem);
+                if(!newitem) {
+                    newitem = create_attribute_from_template(item);
+                }
+            }
+            return newitem;
         });
         if(newattrs !== null) {
             var item=this.props.value;
-            item.attributes=newattrs;
             console.log("attributes are now ",newattrs);
+            item.attributes=newattrs;
             if (this.props.onChange) this.props.onChange(item);
         }
     }
@@ -126,6 +134,30 @@ export default class GenericDialog extends React.Component {
         }
     }
 
+    onSoftDelete = (state) => {
+        api_misc(this.abortType, 'item', 'softdelete', { id: this.props.value.id, softdelete:state })
+            .then((json) => {
+                this.loading(false);
+                if(state) this.props.value.deleted='yes';
+                else if(this.props.value.deleted) {
+                    delete this.props.value.deleted;
+                }
+                this.save(this.props.value);
+            })
+            .catch((err) => {
+                if (err.response.data.messages && err.response.data.messages.length) {
+                    var txt = "";
+                    for (var i = 0; i < err.response.data.messages.length; i++) {
+                        txt += err.response.data.messages[i] + "\r\n";
+                    }
+                    alert(txt);
+                }
+                else {
+                    alert('Error removing the data. Please try again');
+                }
+            });
+    }
+
     render() {
         if(!this.props.value) {
             return (<div></div>);
@@ -135,7 +167,12 @@ export default class GenericDialog extends React.Component {
         <Button label="Save" icon="pi pi-check" className="p-button-raised" onClick={this.onCloseDialog} />
 </div>);
         if(this.props.value.id >0 && ! this.props.onlyAdd) {
+            var softdelete = (<Button label="SoftDel" icon="pi pi-trash" className="p-button-danger p-button-raised p-button-text" onClick={()=>this.onSoftDelete(true)} />);
+            if(this.props.value.deleted) {
+                softdelete = (<Button label="UnDel" icon="pi pi-trash" className="p-button-danger p-button-raised p-button-text" onClick={() => this.onSoftDelete(false)} />);
+            }
             footer=(<div>
+                {softdelete}
                 <Button label="Remove" icon="pi pi-trash" className="p-button-danger p-button-raised p-button-text" onClick={this.onDeleteDialog} />
                 <Button label="Cancel" icon="pi pi-times" className="p-button-warning p-button-raised p-button-text" onClick={this.onCancelDialog} />
                 <Button label="Save" icon="pi pi-check" className="p-button-raised" onClick={this.onCloseDialog} />
@@ -151,38 +188,40 @@ export default class GenericDialog extends React.Component {
           </div>
         </div>
       </div>
-      {this.props.value.attributes && this.props.value.attributes.map((attr,idx) => (
+      {this.props.template.attributes && this.props.template.attributes.map((attr,idx) => {
+          var value=find_value_of_attribute(attr.name, this.props.value.attributes);
+          return (
           <div className='attribute' key={idx}>
           <label>{attr.name}</label>
           <div className='inputs'>
             <div className='input'>
               {attr && attr.type === 'string' && (
-                <InputText value={attr.value} onChange={(e) => this.onChangeAttr('value', attr,idx,e)}/>
+                <InputText value={value} onChange={(e) => this.onChangeAttr(attr,e)}/>
               )}
               {attr && attr.type === 'number' && (
-                <InputNumber className='inputint' onChange={(e) => this.onChangeAttr('value', attr,idx,e)}
+                <InputNumber className='inputint' onChange={(e) => this.onChangeAttr(attr,e)}
                 mode="decimal" inputMode='decimal' minFractionDigits={1} maxFractionDigits={5} min={0} useGrouping={false}
-                value={parseFloat(attr.value)}></InputNumber>
+                value={parseFloat(value)}></InputNumber>
               )}
               {attr && attr.type === 'int' && (
-                <InputNumber className='inputint' onChange={(e) => this.onChangeAttr('value', attr,idx,e)}
-                mode="decimal" useGrouping={false} value={parseInt(attr.value)}></InputNumber>
+                <InputNumber className='inputint' onChange={(e) => this.onChangeAttr(attr,e)}
+                mode="decimal" useGrouping={false} value={parseInt(value)}></InputNumber>
               )}
               {attr && attr.type === 'year' && (
-                <InputNumber className='inputint' onChange={(e) => this.onChangeAttr('value', attr,idx,e)}
-                min={1900} max={2100} mode="decimal" useGrouping={false} value={parseInt(attr.value)}></InputNumber>
+                <InputNumber className='inputint' onChange={(e) => this.onChangeAttr(attr,e)}
+                min={1900} max={2100} mode="decimal" useGrouping={false} value={parseInt(value)}></InputNumber>
               )}
               {attr && attr.type === 'date' && (
-                <Calendar appendTo={document.body} onChange={(e) => this.onChangeAttr('value', attr,idx,e)}
-                dateFormat="yy-mm-dd" value={new Date(attr.value)}></Calendar>
+                <Calendar appendTo={document.body} onChange={(e) => this.onChangeAttr(attr,e)}
+                dateFormat="yy-mm-dd" value={new Date(value)}></Calendar>
               )}
               {attr && attr.type === 'enum' && (
-                <Dropdown appendTo={document.body} onChange={(e) => this.onChangeAttr('value', attr,idx,e)} options={this.enums[attr.name]} value={attr.value}></Dropdown>
+                <Dropdown appendTo={document.body} onChange={(e) => this.onChangeAttr(attr,e)} options={this.enums[attr.name]} value={value}></Dropdown>
               )}
             </div>
           </div>
         </div>
-      ))}
+      )})}
 </Dialog>
 );
     }

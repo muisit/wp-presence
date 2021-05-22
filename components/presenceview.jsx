@@ -10,21 +10,10 @@ export default class PresenceView extends React.Component {
         this.abortType='frontend';
     }
 
-    markPresence = (item,checked) => {
-        var itemsbyid=Object.assign({},this.props.byId);
-        itemsbyid[item.id].checked=checked;
-        this.props.onChange(itemsbyid);
-
-        var dt=new Date(this.props.date);
-        dt = dt.getFullYear() + "-" + (1+dt.getMonth()) + "-" + dt.getDate();
-        // backend call
-        api_misc(this.abortType,'item','mark',{ model: item, date: dt, checked: checked});
-    }
-
-    findState = (item,date) => {
+    findState = (id,date) => {
         for(var i in this.props.list[date]) {
             var pres = this.props.list[date][i];
-            if(pres.item === item.id) {
+            if(pres.item === id) {
                 if(pres.state === "present") return "X";
                 if(pres.state === "absent") return "A";
                 return "O";
@@ -42,6 +31,7 @@ export default class PresenceView extends React.Component {
             var dates=Object.keys(this.props.list);
             dates.sort();
             console.log("looping over dates",dates);
+            console.log(this.props.byId);
             return (
                 <table>
                     <thead>
@@ -55,7 +45,7 @@ export default class PresenceView extends React.Component {
                     <tbody>
                       {this.props.group.map((el,idx2) => (
                         <tr key={idx2}>
-                          <td>{el.name}</td>
+                          <td>{this.props.byId[el] && this.props.byId[el].original.name}</td>
                           {dates.map((dt,idx) => (
                             <td key={idx}>{this.findState(el,dt)}</td>
                             ))}

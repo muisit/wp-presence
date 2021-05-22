@@ -142,8 +142,11 @@
             else if(isset($path[1]) && $path[1] == "delete") {
                 $retval=array_merge($retval, $this->delete($model,$modeldata));
             }
+            else if(isset($path[1]) && $path[1] == "softdelete" && $path[0] == "item") {
+                $retval = array_merge($retval, $model->softDelete($model, $modeldata));
+            }
             else if(isset($path[1]) && $path[1] == "mark") {
-                $model->mark($modeldata["model"]["id"],$modeldata["date"],empty($modeldata["checked"]) ? false: true, $modeldata['state']);
+                $retval=array_merge($retval, $model->mark($modeldata["model"]["id"],$modeldata["date"],empty($modeldata["checked"]) ? false: true, $modeldata['state']));
             }
             else {
                 $retval=array_merge($retval, $this->listAll($model,$offset,$pagesize,$filter,$sort,$special));
@@ -161,7 +164,6 @@
     }
 
     private function save($model, $data) {
-        error_log('save action');
         $retval=array();
         if(!$model->saveFromObject($data)) {
             error_log('save failed');
@@ -176,10 +178,8 @@
     }
 
     private function delete($model, $data) {
-        error_log('delete action');
         $retval=array();
         if(!$model->delete($data['id'])) {
-            error_log('delete failed');
             $retval["error"]=true;
             $retval["messages"]=array("Internal database error");
             if(isset($model->errors) && is_array($model->errors)) {
@@ -187,7 +187,6 @@
             }
         }
         else {
-            error_log('delete successful');
             $retval["id"] = $model->{$model->pk};
         }
         return $retval;

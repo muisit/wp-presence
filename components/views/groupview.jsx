@@ -10,19 +10,19 @@ export default class GroupView extends React.Component {
 
     markPresence = (state, item,checked) => {
         var itemsbyid=Object.assign({},this.props.byId);
-        itemsbyid[item.id].checked=checked;
+        itemsbyid[item.id].data.checked=checked;
         if(checked) {
-            itemsbyid[item.id].presence=state;
+            itemsbyid[item.id].original.presence=state;
         }
         else {
-            itemsbyid[item.id].presence="present";
+            itemsbyid[item.id].original.presence="";
         }
         this.props.onChange(itemsbyid);
 
         var dt=new Date(this.props.date);
         dt = dt.getFullYear() + "-" + (1+dt.getMonth()) + "-" + dt.getDate();
         // backend call
-        api_misc(this.abortType,'item','mark',{ model: item, date: dt, state: state, checked: checked});
+        api_misc(this.abortType,'item','mark',{ model: item.original, date: dt, state: state, checked: checked});
     }
 
     showDetail = (item) => {
@@ -31,19 +31,49 @@ export default class GroupView extends React.Component {
 
     render() {
         if(this.props.group.length > 0) {
+            var displayfields=[];
+            this.props.template.attributes.map((attr) => {
+                if(attr.remark && attr.remark.display === true) {
+                    displayfields.push(attr);
+                }
+            });
+            var items=this.props.group.map((id) => {
+                var itm=this.props.byId[id];
+                itm._display=[];
+                displayfields.map((field) => {
+                    if(itm.data[field.name]) {
+                        itm._display.push(itm.data[field.name]);
+                    }
+                    else {
+                        itm._display.push('');
+                    }
+                });
+                return itm;
+            });
             return (
-                <ul>
-                    {this.props.group.map((el,idx2) => (
-                        <li key={this.props.idx + idx2} className={this.props.byId[el.id].presence}>
-                            <Checkbox inputId={this.props.idx+'#' + idx2} onChange={(e) => this.markPresence('present', el, e.target.checked)} checked={this.props.byId[el.id].checked}/>
-                            <label htmlFor={this.props.idx+'#'+idx2}>{el.name}</label>
-                            <span className="icon">
-                              <a onClick={(e) => this.markPresence('absent', el,true)}><i className="pi pi-thumbs-down" /></a>
-                              <a onClick={(e) => this.showDetail(el)}><i className="pi pi-search" /></a>
-                            </span>
-                        </li>
+                <table className='groupitems'>
+                    <tbody>
+                    {items.map((el,idx2) => (
+                        <tr key={this.props.idx + idx2} className={el.original.presence}>
+                            <td className='groupcheck'><Checkbox inputId={this.props.idx + '#' + idx2} onChange={(e) => this.markPresence('present', el, e.target.checked)} checked={el.data.checked} /></td>
+                            <td><label htmlFor={this.props.idx+'#'+idx2}>{el.original.name}</label></td>
+                            {el._display && el._display.length>0 && el._display.map((dsp,idx) => (
+                            <td key={this.props.idx + idx2 + '_d' + idx}>{dsp}</td>
+                            ))}
+                            <td className='groupcheck'>
+                                <span className="icon">
+                                  <a onClick={(e) => this.markPresence('absent', el,true)}><i className="pi pi-thumbs-down" /></a>
+                                </span>
+                            </td>
+                            <td className='groupcheck'>
+                                <span className="icon">
+                                  <a onClick={(e) => this.showDetail(el)}><i className="pi pi-search" /></a>
+                                </span>
+                            </td>
+                        </tr>
                     ))}
-                </ul>
+                    </tbody>
+                </table>
             )
         }
         else if(Object.keys(this.props.group).length > 0) {

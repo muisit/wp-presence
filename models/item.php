@@ -30,7 +30,7 @@
  class Item extends Base {
     public $table = "wppres_item";
     public $pk="id";
-    public $fields=array("id","name","type","created","creator","modified","modifier","state");
+    public $fields=array("id","name","type","created","creator","modified","modifier","state","softdeleted","deletor");
     
     // list all fields and include the special attributes list
     public $fieldToExport = array(
@@ -41,7 +41,9 @@
         "creator" => "creator",
         "modified" => "modified",
         "modifier" => "modifier",
-        "state" => "state",
+        "softdeleted" => "deleted",
+        "deletor" => "deletor",
+        //"state" => "state",
         // specials
         "attributes" => "attributes",
         "a1" => "a1",
@@ -134,6 +136,8 @@
             case 'C': $orderBy[]="i.created desc"; break;
             case 'm': $orderBy[]="i.modified asc"; break;
             case 'M': $orderBy[]="i.modified desc"; break;
+            case 'd': $orderBy[]="i.softdeleted asc"; break;
+            case 'D': $orderBy[]="i.softdeleted desc"; break;
             case 's': $orderBy[]="i.state asc"; break;
             case 'S': $orderBy[]="i.state desc"; break;
             case 't': $orderBy[]="i.type asc"; break;
@@ -151,6 +155,9 @@
         if(isset($filter['type']) && !empty(trim($filter['type']))) {
             $name=trim($filter['type']);
             $qb->where("i.type",$name);
+        }
+        if(!isset($filter['all'])) {
+            $qb->where('softdeleted is NULL');
         }
     }
 
@@ -264,6 +271,7 @@
                "remark" => null 
            ))->insert();
         }
+        return array("state"=>$state);
     }
 
     public function saveFromObject($obj) {
@@ -279,5 +287,28 @@
             }
         }
         return parent::saveFromObject($obj);
+    }
+
+    public function softDelete($model,$modeldata) {
+        $id=isset($modeldata['id']) ? intval($modeldata['id']) : -1;
+        $dodel = isset($modeldata['softdelete']) ? boolval($modeldata['softdelete']) : true;
+        error_log("dodel is ".json_encode($dodel));
+        $model=new Item($id);
+        $model->load();
+        if($model->getKey() > 0 && intval($model->getKey()) == $id) {
+            $user = wp_get_current_user();
+            if($dodel) {
+                $model->deletor = ($user && $user->ID) ? $user->ID : -1;
+                $model->softdeleted = strftime('%F %T');
+            }
+            else {
+                $model->deletor=null;
+                $model->softdeleted=null;
+            }
+            if($model->save()) {
+                return array("id"=> $model->getKey());
+            }
+        }            
+        return array("error"=>true,"messages"=>"Failed to softdelete");
     }
 }

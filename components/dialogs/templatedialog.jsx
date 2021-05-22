@@ -89,10 +89,9 @@ export default class TemplateDialog extends React.Component {
                         return null;
                     }
                     else {
-                        var newitem=Object.assign({},item);
-                        if(field == "groupBy") {
-                            newitem['remark'] = Object.assign({},newitem['remarks']);
-                            newitem['remark'].groupBy=value;
+                        var newitem=Object.assign({remark:{}},item);
+                        if(field == "groupBy" || field=="display") {
+                            newitem.remark[field]=value;
                         }
                         else {
                             newitem[field] = value;
@@ -201,6 +200,10 @@ export default class TemplateDialog extends React.Component {
             <div className='input'>
               <Checkbox inputId={'group'+idx} checked={attr.remark && attr.remark.groupBy} onChange={(e) => this.onChangeAttr('set','groupBy', attr,idx,e.checked)}/>
               <label htmlFor={'group'+idx}>Grp</label>
+            </div>
+            <div className='input'>
+              <Checkbox inputId={'display'+idx} checked={attr.remark && attr.remark.display} onChange={(e) => this.onChangeAttr('set','display', attr,idx,e.checked)}/>
+              <label htmlFor={'group'+idx}>Display</label>
             </div>
             <div className='actions'>
               <i className="pi pi-trash pi-mr-2" onClick={(e) => this.onChangeAttr('delete','', attr,idx,'')}></i>

@@ -5,10 +5,14 @@ import { Column } from 'primereact/components/column/Column';
 import GenericDialog from './dialogs/genericdialog';
 import React from 'react';
 import PagedTab from './pagedtab';
+import { create_attributes_from_template } from './functions';
 
 const fieldToSorterList={
     "id":"i",
-    "name":"n"
+    "name":"n",
+    "modified": "m",
+    "created": "c",
+    "deleted": "d"
 };
 
 export default class GenericTab extends PagedTab {
@@ -18,7 +22,7 @@ export default class GenericTab extends PagedTab {
     }
 
     apiCall = (o,p,f,s) => {
-        return api_list(this.abortType,'item',{ sort: s, offset: o, pagesize: p, filter: { type: this.props.template.name, name: f}, special: "include_3" });
+        return api_list(this.abortType,'item',{ sort: s, offset: o, pagesize: p, filter: { 'all': true, type: this.props.template.name, name: f}, special: "include_3" });
     }
 
     fieldToSorter = (fld) => {
@@ -36,27 +40,7 @@ export default class GenericTab extends PagedTab {
     }
 
     onAdd = (event) => {
-        var attrs=this.props.template.attributes.map((item) => {
-            var def=item.value;
-            if(item.type === 'enum') {
-                def=item.value.split(' ')[0];
-            }
-            else if(item.type == 'int') {
-                def=0;
-            }
-            else if(item.type =='year') {
-                def=2000;
-            }
-            else if(item.type == 'number') {
-                def=0.0;
-            }
-            return {
-                id: -1,
-                name: item.name,
-                type: item.type,
-                value: def
-            }
-        });
+        var attrs=create_attributes_from_template(this.props.template.attributes);
         this.setState({item: {id:-1, type: this.props.template.name, state:'new',attributes:attrs},displayDialog:true});
     }
 
@@ -94,7 +78,7 @@ export default class GenericTab extends PagedTab {
             <Column field="name" header="Name" sortable={true}/>
             <Column field="created" header="Created" sortable={true}/>
             <Column field="modified" header="Modified" sortable={true}/>
-            <Column field="state" header="State" sortable={true}/>
+            <Column field="deleted" header="Deleted" sortable={true} />
             {this.props.template && this.props.template.attributes && this.props.template.attributes.map((a,idx) => {
                 if(idx<3) {
                     return (<Column field={"a" + (idx+1)} header={a.name} sortable={true} key={idx}/>);
