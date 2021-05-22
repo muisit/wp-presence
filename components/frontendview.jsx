@@ -41,10 +41,10 @@ export default class FrontendView extends React.Component {
         if(!sorter) {
             // sort into a list based on name
             retval = items.sort(function(a,b) {
-                var a1=itemsById[a];
-                var b1=itemsById[b];
-                if(a1.name < b1.name) return -1;
-                if(a1.name > b1.name) return 1;
+                var a1=itemsById[a].original.name.toUpperCase();
+                var b1=itemsById[b].original.name.toUpperCase();
+                if(a1 < b1) return -1;
+                if(a1 > b1) return 1;
                 return 0;
             });
         }

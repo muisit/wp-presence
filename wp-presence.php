@@ -12,7 +12,7 @@
  * Plugin Name:         wp-presence
  * Plugin URI:          https://github.com/muisit/wp-presence
  * Description:         Simple tally of inventory or people's presence
- * Version:             1.0.7
+ * Version:             1.0.9
  * Requires at least:   5.4
  * Requires PHP:        7.2
  * Author:              Michiel Uitdehaag
