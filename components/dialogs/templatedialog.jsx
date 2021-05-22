@@ -177,6 +177,8 @@ export default class TemplateDialog extends React.Component {
             {name: 'Year', value: 'year'}, // four digit value
             {name: 'Date', value: 'date' }, // ISO field
             {name: 'Enum', value: 'enum' }, // enumeration
+            {name: 'BYear', value: 'byear' }, // calculated field
+            {name: 'Category', value: 'category'}, // calculated field
         ];
 
         var lastattr=this.props.value.attributes ? this.props.value.attributes.length : 0;

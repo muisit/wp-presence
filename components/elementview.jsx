@@ -29,9 +29,13 @@ export default class ElementView extends React.Component {
     }
 
     render() {
+        if(!this.props.template.attributes) return (null);
+        var attrs=this.props.template.attributes.filter(function(a) {
+          return a.type != 'byear' && a.type != 'category';
+        });
         return (<div>
               <h4>{this.props.item.original.name}</h4>
-              {this.props.template.attributes && this.props.template.attributes.map((attr,idx) => {
+              {attrs.map((attr,idx) => {
                 var value = this.props.item.data && this.props.item.data[attr.name] ? this.props.item.data[attr.name] : '';
                 return (
           <div className='attribute' key={idx}>

@@ -4,7 +4,7 @@ import { Button } from 'primereact/button';
 import PresenceView from './presenceview';
 import ElementView from './elementview';
 import GroupedItemView from './views/groupeditemview'
-import { pad } from "./functions";
+import { pad, date_to_category } from "./functions";
 
 export default class FrontendView extends React.Component {
     constructor(props, context) {
@@ -101,12 +101,21 @@ export default class FrontendView extends React.Component {
         api_list(this.abortType, 'item', { pagesize: 0, filter: { type: templ.name }, special: "with attributes/with presence "+dt})
             .then((res) => {
                 // see if we have a sorter in the templates
+                // also look for computed fields BYear and Category
                 console.log("parsing list result of template ", templ);
                 var sortBy=[];
+                var compfields={};
                 for (var i in templ.attributes) {
                     var attr = templ.attributes[i];
                     if(attr.remark && attr.remark.groupBy) {
                         sortBy.push(attr.name);
+                    }
+                    if(attr.type == 'byear' || attr.type == 'category') {
+                        console.log("pushing computed field ",attr);
+                        if(!compfields[attr.value]) {
+                            compfields[attr.value]=[];
+                        }
+                        compfields[attr.value].push(attr);
                     }
                 }
                 // map all attributes of each item back onto the item
@@ -127,6 +136,29 @@ export default class FrontendView extends React.Component {
                         // we do not need the original list of attributes, so clean up some memory
                         delete item.original.attributes;
                     }
+
+                    // calculate computed fields
+                    var keys=Object.keys(compfields);
+                    if(keys.length) {
+                        keys.map((key) => {
+                            var fields = compfields[key];
+                            var value = item.data[key];                            
+                            console.log("computed field ",fields,value);
+                            if(value) {
+                                fields.map((field) => {
+                                    if (field.type == 'byear') {
+                                        var dt = new Date(value);
+                                        console.log("computed field byear says ", dt.getFullYear());
+                                        item.data[field.name] = dt.getFullYear();
+                                    }
+                                    else if (field.type == 'category') {
+                                        item.data[field.name] = date_to_category(value);
+                                    }
+                                });
+                            }
+                        });
+                    }
+
                     if (item.original.presence === 'present' || item.original.presence === 'absent') {
                         item.data.checked=true;
                     }
