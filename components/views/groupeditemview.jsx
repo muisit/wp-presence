@@ -65,7 +65,6 @@ export default class GroupedItemView extends React.Component {
                     </div>
                     <div className='row'>
                         <div className='col-12 offset-md-3 col-md-6'>
-                            Date is {date}<br/>
                             <Calendar className='fullwidth' appendTo={document.body} onChange={this.props.onChangeDate} dateFormat="yy-mm-dd" value={new Date(date)}></Calendar><br />
                             <GroupView showElement={this.props.onShowElement} date={this.props.date} template={this.props.template} group={this.props.group} byId={this.props.byId} idx='' onChange={this.props.onChangePresence} />
                             <Button icon="pi pi-plus" className="floataction p-button-rounded p-button-help" onClick={this.showEntryDialog} />

@@ -1,6 +1,6 @@
 {
   "name": "WP-Presence",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "main": "index.jsx",
   "dependencies": {
     "@babel/preset-env": "^7.11.5",
