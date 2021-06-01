@@ -37,14 +37,15 @@ HEREDOC;
     public function scripts($page)  {
         if (in_array($page, array("toplevel_page_wppresence"))) {
             $script = plugins_url('/dist/app.js', __FILE__);
-            $this->enqueue_code($script);
-            wp_enqueue_style( 'wppresence', plugins_url('/dist/app.css', __FILE__), array(), '1.0.0' );
+            $this->enqueue_code($script, hash_file("sha256",__DIR__."/dist/app.js"));
+            $hash=hash_file("sha256",__DIR__."/dist/app.css");
+            wp_enqueue_style( 'wppresence', plugins_url('/dist/app.css', __FILE__), array(), $hash);
         }
     }
 
-    private function enqueue_code($script) {
+    private function enqueue_code($script,$hsh) {
         // insert a small piece of html to load the ranking react script
-        wp_enqueue_script('wppresence', $script, array('jquery', 'wp-element'), '1.0.0');
+        wp_enqueue_script('wppresence', $script, array('jquery', 'wp-element'), $hsh);
         require_once(__DIR__ . '/api.php');
         $dat = new \WPPresence\API();
         $nonce = wp_create_nonce($dat->createNonceText());
@@ -62,7 +63,7 @@ HEREDOC;
         $filename = dirname(__FILE__)."/dist/$name.js";
         if(file_exists($filename)) {
             $script = plugins_url('/dist/'.$name.'.js', __FILE__);
-            $this->enqueue_code($script);
+            $this->enqueue_code($script, hash_file("sha256", $filename));
             wp_enqueue_style('wppresence', plugins_url('/dist/app.css', __FILE__), array(), '1.0.0');
         }
         $output = "<div id='wppresence-$name'></div>";

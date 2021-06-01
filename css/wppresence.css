@@ -41,8 +41,9 @@
 .entry-content #wppresence-frontend ul li span.icon a i { padding: 2px 4px; }
 
 #wppresence-frontend div.container h4 { margin-bottom: 0.2rem; }
+
 #wppresence-frontend div.container table.groupitems { border-width: 0px; margin: 0px; }
-#wppresence-frontend div.container table.groupitems td { line-height: 1rem; }
+#wppresence-frontend div.container table.groupitems td { line-height: 1rem; border-width: 0px;}
 #wppresence-frontend div.container table.groupitems td label { margin: 0px; }
 
 #wppresence-frontend div.container div.row button.p-button.floataction {

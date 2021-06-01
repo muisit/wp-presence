@@ -4,13 +4,13 @@ import { Button } from 'primereact/button';
 import PresenceView from './presenceview';
 import ElementView from './elementview';
 import GroupedItemView from './views/groupeditemview'
-import { pad, date_to_category } from "./functions";
+import { pad, date_to_category, format_date } from "./functions";
+import moment from 'moment';
 
 export default class FrontendView extends React.Component {
     constructor(props, context) {
         super(props, context);
-        var dt=new Date();
-        dt = dt.getFullYear() + "-" + (1+dt.getMonth()) + "-" + dt.getDate();
+        var dt=moment().format("YYYY-MM-DD");
         this.state = {
             templates: [],
             template: null,
@@ -174,6 +174,7 @@ export default class FrontendView extends React.Component {
 
     showElement = (selitem) => {
         var item = this.state.itemsById[selitem.id];
+        if(!item) item=selitem; // if we have a new item, keep the original object
         // set the default values for an item based on its template, if it was not set yet
         for(var i in this.state.template.attributes) {
             var attr=this.state.template.attributes[i];
@@ -186,6 +187,7 @@ export default class FrontendView extends React.Component {
                 }
             }
         }
+        if(selitem.changed) item.changed=true; // copy the attribute-has-changed setting
         this.setState({item:item});
     }
 
@@ -259,8 +261,9 @@ export default class FrontendView extends React.Component {
                     for(var i in res.data.list) {
                         var pres = res.data.list[i];
                         //console.log("presence record is ",pres);
-                        var dt = new Date(pres.created);
-                        var key = pad(dt.getMonth() + 1) + ' ' + pad(dt.getDate());
+                        var key = moment(pres.created).format("MM DD");
+                        //var key = pad(dt.getMonth() + 1) + ' ' + pad(dt.getDate());
+                        
                         //console.log("key is ",key);
                         if(!allpresence[key]) {
                             allpresence[key]=[];
@@ -296,8 +299,7 @@ export default class FrontendView extends React.Component {
     }
 
     changeDate = (e) => {
-        var dt=new Date(e.target.value);
-        dt = dt.getFullYear() + "-" + (1+dt.getMonth()) + "-" + dt.getDate();
+        var dt=moment(e.target.value).format("YYYY-MM-DD");
         this.setState({'date': dt},
             function() { this.show(this.state.template);}
         );
@@ -318,7 +320,7 @@ export default class FrontendView extends React.Component {
                 <div className='container'>
                   <div className='calendar row'>
                     <div className='col-12 offset-md-3 col-md-6'>
-                      <Button label="Terug" className="p-button-raised p-button-text fullwidth" onClick={this.saveElement} />
+                      <Button label={this.state.item.changed ? "Opslaan" : "Terug"} className="p-button-raised p-button-text fullwidth" onClick={this.saveElement} />
                       {!this.state.item.original.deleted && (
                       <Button label="Verwijder" className="p-button-raised p-button-text fullwidth" onClick={this.softdelElement} />
                       )}

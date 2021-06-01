@@ -17,6 +17,7 @@ export default class ElementView extends React.Component {
         if(attr.name == 'name') {
           console.log("setting original name");
             newitem.original.name = value;
+            newitem.changed=true;
         }
         else {
             console.log("adjusting attribute data");
@@ -24,6 +25,7 @@ export default class ElementView extends React.Component {
               value = format_date(value);
             }
             newitem.data[attr.name]=value;
+            newitem.changed=true;
         }
         if (this.props.onChange) this.props.onChange(newitem);
     }
@@ -35,6 +37,14 @@ export default class ElementView extends React.Component {
         });
         return (<div>
               <h4>{this.props.item.original.name}</h4>
+          <div className='attribute'>
+            <label>Name</label>
+            <div className='inputs'>
+              <div className='input'>
+                <InputText className="fullwidth" value={this.props.item.original.name} onChange={(e) => this.onChangeAttr({ name: 'name' }, e.target.value)} />
+              </div>
+            </div>
+          </div>
               {attrs.map((attr,idx) => {
                 var value = this.props.item.data && this.props.item.data[attr.name] ? this.props.item.data[attr.name] : '';
                 return (
@@ -68,15 +78,7 @@ export default class ElementView extends React.Component {
               </div>
             </div>
           </div>
-          )})}              
-          <div className='attribute'>
-            <label>Name</label>
-            <div className='inputs'>
-              <div className='input'>
-                <InputText className="fullwidth" value={this.props.item.original.name} onChange={(e) => this.onChangeAttr({name:'name'},e.target.value)}/>
-              </div>
-            </div>
-          </div>
+          )})}
         </div>);
     }
 }
