@@ -49,6 +49,16 @@
             die(403);
         }
     }
+    private function fromGet($var, $def = null)
+    {
+        if (isset($_GET[$var])) return $_GET[$var];
+        return $def;
+    }
+    private function fromPost($var, $def = null)
+    {
+        if (isset($_POST[$var])) return $_POST[$var];
+        return $def;
+    }
 
     public function resolve() {
         error_log("ajax resolver");
@@ -57,10 +67,122 @@
         error_log('resolving call: '.json_encode($data));
 
         if(empty($data) || !isset($data['path'])) {
-            error_log('die because no path');
+            // see if we have the proper GET requests for a download
+            error_log(json_encode($_GET));
+            if (!empty($this->fromGet("action")) && !empty($this->fromGet("nonce"))) {
+                $retval = $this->handleGet($this->fromGet("action"), $this->fromGet("nonce"));
+            }
+
+            error_log('die because no path nor nonce');
             die(403);
+        } 
+        else {
+            $retval = $this->handlePost($data);
+        }
+        if (!isset($retval["error"])) {
+            wp_send_json_success($retval);
+        } else {
+            wp_send_json_error($retval);
+        }
+        wp_die();
+    }
+
+    private function handleGet($action,$nonce) {
+        $this->authenticate($nonce);
+        if ($action == "wppresence") {
+            $modelname = $this->fromGet("model");
+            $this->export($modelname);
+        }    
+        die(403);
+    }
+
+    private function export($model) {
+        $base = $this->loadModel("Item");
+        $template = $base->selectAll(0,0,array("all"=>true,"type"=>"template","name"=>$model),"n");
+        if(empty($template) && sizeof($template)==0) die(403);
+        $template=$template[0];
+        $template=new $base($template);
+
+        $models=$base->selectAll(0,0,array("all"=>true, "type"=>$template->name),"n");
+        $newmodels=array();
+        $ids=array();
+        $attrbag=array();
+        $presencebag=array();
+        foreach($models as $m) {
+            $m=new $base($m);
+            $ids[]=$m->getKey();
+            $attrbag["i".$m->getKey()]=array();
+            $presencebag["i" . $m->getKey()] = array();
+            $newmodels[]=$m;
+        }
+        $models=$newmodels;
+        $modelattributes=$template->listAttributes();
+        $header=array("ID","name","created","modified","deleted");
+        foreach($modelattributes as $a) {
+            $header[]=$a->name;
         }
 
+        $eva = $this->loadModel("EVA");
+        $attributes=$eva->selectAllAttributes($ids);
+        foreach($attributes as $a) {
+            $key="i".$a->item_id;
+            $attrbag[$key][$a->name]=$a;
+        }
+
+        $alldates=array();
+        $presence = $this->loadModel("Presence");
+        $allmarks = $presence->byItems($ids);
+        foreach($allmarks as $mark) {
+            $key="i".$mark->item_id;
+            $dt=strftime("%F",strtotime($mark->created));
+            $alldates[$dt]=true;
+            $presencebag[$key][$dt]=$mark;
+        }
+
+        $header[]="";
+        $dates=array_keys($alldates);
+        sort($dates);
+        foreach($dates as $d) $header[]=$d;
+
+        $data=array();
+        $data[]=$header;
+        $defattribute=$this->loadModel("EVA");
+        foreach($models as $m) {
+            $line = array();
+            $line[]=$m->getKey();
+            $line[]=$m->name;
+            $line[]= strftime('%F %T', strtotime($m->created));
+            $line[]= !empty($m->modified) ? strftime('%F %T', strtotime($m->modified)) : '';
+            $line[]= !empty($m->softdeleted) ? strftime('%F %T', strtotime($m->softdeleted)) : '';
+
+            $key="i".$m->getKey();
+            foreach($modelattributes as $ta) {
+                $a = isset($attrbag[$key][$ta->name]) ? $attrbag[$key][$ta->name] : $defattribute;
+                $line[]=$a->getValue($ta,$attrbag[$key]);
+            }
+
+            $line[]="";
+            foreach($dates as $d) {
+                $v = isset($presencebag[$key][$d]) ? "X": "";
+                $line[]=$v;
+            }
+            $data[]=$line;
+        }
+
+        header('Content-Disposition: attachment; filename="' . $template->name . '.csv";');
+        header('Content-Type: application/csv; charset=UTF-8');
+
+        $f = fopen('php://output', 'w');
+        foreach ($data as $line) {
+            fputcsv($f, $line, "\t");
+        }
+        fpassthru($f);
+        fclose($f);
+        ob_flush();
+        exit();
+    }
+
+    private function handlePost($data) {
         $modeldata = isset($data['model']) ? $data['model'] : array();
         error_log("modeldata is ".json_encode($modeldata));
         $offset = isset($modeldata['offset']) ? intval($modeldata['offset']) : 0;
@@ -153,14 +275,7 @@
             }
             break;
         }
-
-        if(!isset($retval["error"])) {
-            wp_send_json_success($retval);
-        }
-        else {
-            wp_send_json_error($retval);
-        }
-        wp_die();
+        return $retval;
     }
 
     private function save($model, $data) {

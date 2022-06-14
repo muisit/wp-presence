@@ -24,33 +24,38 @@ export default class PresenceView extends React.Component {
 
     render() {
         if(!this.props.list) {
-            console.log("no list data");
+            //console.log("no list data");
             return (<div></div>);
         }
         if(this.props.group.length > 0) {
             var dates=Object.keys(this.props.list);
             dates.sort();
-            console.log("looping over dates",dates);
-            console.log(this.props.byId);
+            //console.log("looping over dates",dates);
+            //console.log(this.props.byId);
             return (
-                <table>
+                <table className="presence">
                     <thead>
                         <tr>
                             <th>Naam</th>
-                            {dates.map((dt,idx) => (
-                                <th key={idx}>{dt.split(' ')[0]}<br/>{dt.split(' ')[1]}</th>
-                            ))}
+                            {dates.map((dt,idx) => {
+                                var col= ((idx % 2) == 1) ? "odd": "even"
+                                return (<th key={idx} className={"field head col-"+col}>{dt.split(' ')[0]}<br/>{dt.split(' ')[1]}</th>);
+                            })}
                         </tr>
                     </thead>
                     <tbody>
-                      {this.props.group.map((el,idx2) => (
-                        <tr key={idx2}>
-                          <td>{this.props.byId[el] && this.props.byId[el].original.name}</td>
-                          {dates.map((dt,idx) => (
-                            <td key={idx}>{this.findState(el,dt)}</td>
-                            ))}
+                      {this.props.group.map((el,idx2) => {
+                          var row=((idx2 % 2) == 1) ? "odd": "even"
+                          return (
+                        <tr key={idx2} className={"row-"+row}>
+                          <td className='name'>{this.props.byId[el] && this.props.byId[el].original.name}</td>
+                          {dates.map((dt,idx) => {
+                              var col= ((idx % 2) == 1) ? "odd": "even"
+                              return (<td key={idx} className={"field col-"+col}>{this.findState(el,dt)}</td>);
+                          })}
                         </tr>
-                      ))}
+                      ); 
+                      })}
                     </tbody>
                 </table>
             )

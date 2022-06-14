@@ -144,6 +144,7 @@ class Validator {
         if(method_exists($this->model, $rule)) {
             return $this->model->$rule($this, $value,$ruleelements);
         }
+        error_log("checking $rule on ".json_encode($value)."/".json_encode($params));
 
         $retval=true;
         switch($rule) {
@@ -359,8 +360,8 @@ class Validator {
 
                     $result = $validator->validate($objvals);
                     $retval = $result && $retval;
-                    if(!$result && isset($obj->errors) && sizeof($obj->errors)) {
-                        $this->errors=array_merge($this->errors,$obj->errors);
+                    if(!$result && isset($validator->errors) && sizeof($validator->errors)) {
+                        $this->errors=array_merge($this->errors,$validator->errors);
                     }
                     $lst[]=$obj;
                 }

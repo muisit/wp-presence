@@ -5,6 +5,7 @@ import { Dialog } from 'primereact/dialog';
 import { Dropdown } from 'primereact/dropdown';
 import { InputText } from 'primereact/inputtext';
 import { InputNumber } from 'primereact/inputnumber';
+import { Checkbox } from 'primereact/checkbox';
 import { Calendar } from 'primereact/calendar';
 import { find_value_of_attribute, attribute_by_name, create_attribute_from_template } from './../functions';
 
@@ -63,6 +64,7 @@ export default class GenericDialog extends React.Component {
                 else {
                     alert('Error storing the data. Please try again');
                 }
+                this.loading(false);
             });
     }
 
@@ -86,20 +88,26 @@ export default class GenericDialog extends React.Component {
         var newattrs = this.props.template.attributes.map((item) => {
             console.log("finding attribute ",item.name);
             var newitem = abyname[item.name];
+            if (!newitem) {
+                newitem = create_attribute_from_template(item);
+            }
+            else {
+                // make sure we migrate any changes in the back-end
+                newitem = Object.assign({},item,newitem);
+            }
             if(item.name == attr.name) {
                 console.log("replacing item with new value");
-                newitem=Object.assign({},newitem);
+                newitem=Object.assign({}, item, newitem);
                 if(attr.type=='date') {
                     var dt=new Date(value);
                     value = dt.getFullYear() + "-" + ((dt.getMonth() < 9) ? '0' : '') + (dt.getMonth()+1) + "-" + ((dt.getDate() < 10) ? '0':'') + dt.getDate();
                 }
                 newitem.value = value;
+                newitem.type = attr.type; // copy the type field. This is skipped in the front-end
             }
             else {
                 console.log("keeping original item from ",newitem);
-                if(!newitem) {
-                    newitem = create_attribute_from_template(item);
-                }
+                
             }
             return newitem;
         });
@@ -217,6 +225,9 @@ export default class GenericDialog extends React.Component {
               )}
               {attr && attr.type === 'enum' && (
                 <Dropdown appendTo={document.body} onChange={(e) => this.onChangeAttr(attr,e)} options={this.enums[attr.name]} value={value}></Dropdown>
+              )}
+              {attr && attr.type === 'check' && (
+                <Checkbox checked={value=='yes'} onChange={(e) => this.onChangeAttr(attr, {value: e.checked?"yes":"no"})} />
               )}
             </div>
           </div>

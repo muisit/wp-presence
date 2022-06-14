@@ -30,7 +30,7 @@
  class Item extends Base {
     public $table = "wppres_item";
     public $pk="id";
-    public $fields=array("id","name","type","created","creator","modified","modifier","state","softdeleted","deletor");
+    public $fields=array("id","name","type","created","creator","modified","modifier","state","softdeleted","deletor","config");
     
     // list all fields and include the special attributes list
     public $fieldToExport = array(
@@ -50,6 +50,7 @@
         "a2" => "a2",
         "a3" => "a3",
         "presence"=>"presence",
+        "config"=>"config"
     );
 
     public $rules=array(
@@ -61,17 +62,28 @@
         "modified" => "skip",
         "modifier" => "skip",
         "state"=>"required|trim|lte=20",
+        "softdeleted" => "skip",
+        "deletor" => "skip",
         // specials
         "attributes"=> "contains=EVA,attributes_list",
         "a1"=>"skip",
         "a2"=>"skip",
         "a3"=>"skip",
         "presence"=>"skip",
-        "checked"=>"skip"
+        "checked"=>"skip",
+        "config" => "json"
     );
 
     public function __construct($id=null) {
         parent::__construct($id);
+    }
+
+    public function export($result=null) {
+        $retval = parent::export($result);
+        if(isset($retval['config'])) {
+            $retval['config']=json_decode($retval['config']);
+        }
+        return $retval;
     }
 
     public function save() {
@@ -96,7 +108,7 @@
     }
 
     public function postSave() {
-        error_log("postsave for item, testing attributes_list: ".(isset($this->attributes_list)?"set":"not set"));
+        //error_log("postsave for item, testing attributes_list: ".(isset($this->attributes_list)?"set":"not set"));
         if(isset($this->attributes_list)) {
             error_log("attributes list is set for saving");
             $oldlist = $this->listAttributes();
@@ -116,6 +128,16 @@
             }
             foreach($oldlist as $c) {
                 $c->delete();
+            }
+        }
+
+        if(isset($this->_ori_fields["config"])) {
+            $cfg1=json_decode($this->config);
+            $cfg2=json_decode($this->_ori_fields["config"]);
+            if($cfg1 !== FALSE && $cfg2 !== FALSE && isset($cfg1->range) && isset($cfg2->range)) {
+                if($cfg1->range != $cfg2->range) {
+                    $this->updateRangeSets($cfg1->range,$cfg2->range);
+                }
             }
         }
         return true;
@@ -142,6 +164,16 @@
             case 'S': $orderBy[]="i.state desc"; break;
             case 't': $orderBy[]="i.type asc"; break;
             case 'T': $orderBy[]="i.type desc"; break;
+            case 'a':
+                $i++;
+                $idx=$sort[$i];
+                $orderBy[]="a$idx asc";
+                break;
+            case 'A':
+                $i++;
+                $idx=$sort[$i];
+                $orderBy[]="a$idx desc";
+                break;
             }
         }
         return $orderBy;
@@ -158,6 +190,9 @@
         }
         if(!isset($filter['all'])) {
             $qb->where('softdeleted is NULL');
+        }
+        if(isset($filter['ids'])) {
+            $qb->where_in('id',$filter['ids']);
         }
     }
 
@@ -216,9 +251,35 @@
         foreach($specials as $special_str) {
             if(strpos($special_str,"with presence") === 0) {
                 $withpresence = strftime('%F',strtotime(substr($special_str,14)));
+                $range=1;
+                if(isset($filter["type"])) {
+                    $template = $this->templateByType($filter["type"]);
+                    if(!empty($template)) {
+                        error_log("config is ".json_encode($template->config));
+                        $cfg=json_decode($template->config);
+                        if($cfg!== FALSE && isset($cfg->range)) {
+                            $range=$cfg->range;
+                        }
+                    }
+                }
+                $start = $this->rangeToSet($range,$withpresence);
+                $end=strftime('%F',strtotime($start) + 24*60*60);
+                if($range > 360) {
+                    $end = strftime('%Y-01-01',strtotime($start) + 367 * 24*60*60);
+                }
+                else if($range > 180) {
+                    $end = strftime('%Y-%m-01',strtotime($start) + 186 * 24*60*60);
+                }
+                else if($range > 90) {
+                    $end = strftime('%Y-%m-01',strtotime($start) + 94*24*60*60);
+                }
+                else if($range > 30) {
+                    $end = strftime('%Y-%m-01',strtotime($start) + 32*24*60*60);
+                }
                 error_log("joining presence on ".$withpresence);
-                $qb->join("wppres_presence","p","i.id=p.item_id and p.created='$withpresence'","left");
-                $qb->select("p.state as presence");
+                $qb->join("wppres_presence","p","i.id=p.item_id and p.created>='$start' and p.created<'$end'","left");
+                $qb->select("max(p.state) as presence");
+                $qb->groupBy("i.id, i.name,i.type,i.created,i.creator,i.modified,i.modifier,i.state,i.softdeleted,i.deletor,i.config");
             }
         }
 
@@ -256,22 +317,53 @@
     }
 
     public function mark($itemid,$date,$ispresent,$state) {
+        $item = new Item($itemid);
+        $item->load();
+        $model = $this->createModel("Presence");        
         // always attempt to delete any existing element
         if(!in_array($state,array("present","absent"))) {
             $state="present";
         }
-        $this->query()->from("wppres_presence")->where("item_id",$itemid)->where("created",$date)->delete();
-        $user = wp_get_current_user();
-        if($ispresent) {
-           $this->query()->from("wppres_presence")->set(array(
-               "item_id"=>$itemid,
-               "created" => $date,
-               "creator" => ($user && $user->ID) ? $user->ID : -1,
-               "state" => $state,
-               "remark" => null 
-           ))->insert();
-        }
+        $model->mark($item,$date,$ispresent,$state);
         return array("state"=>$state);
+    }
+
+    public function rangeSet($date) {
+        error_log("config is ".json_encode($this->config));
+        $range=1;
+        if(isset($this->config)) {
+            $cfg=json_decode($this->config);
+            if($cfg!==FALSE && isset($cfg->range)) {
+                $range=$cfg->range;
+            }
+        }
+        error_log("creating range set for range $range");
+        return $this->rangeToSet($range,$date);
+    }
+
+    public function rangeToSet($range,$date) {
+        if($range > 360) {
+            $date = strftime('%Y-01-01',strtotime($date));
+        }
+        else if($range > 180) {
+            $m=intval(strftime('%m',strtotime($date)));
+            if($m<7) $date = strftime('%Y-01-01',strtotime($date));
+            else $date = strftime('%Y-07-01',strtotime($date));
+        }
+        else if($range > 90) {
+            $m=intval(strftime('%m',strtotime($date)));
+            if($m<4) $date = strftime('%Y-01-01',strtotime($date));
+            else if($m<7) $date = strftime('%Y-04-01',strtotime($date));
+            else if($m<10) $date = strftime('%Y-07-01',strtotime($date));
+            else $date = strftime('%Y-10-01',strtotime($date));
+        }
+        else if($range > 30) {
+            $date =strftime('%Y-%m-01',strtotime($date));
+        }
+        else {
+            $date = strftime('%F',strtotime($date));
+        }
+        return $date;
     }
 
     public function saveFromObject($obj) {
@@ -286,6 +378,42 @@
                 $obj['attributes'][]=$attr;
             }
         }
+
+        // add all missing template elements and set the correct types
+        $template = $this->templateByType($obj["type"] ?? "none");
+        if(!empty($template)) {
+            $template_attributes = $template->listAttributes();
+            $newlist=[];
+            $abyname=[];
+            foreach($obj['attributes'] as $a) {
+                $abyname[$a['name']]=$a;
+            }
+
+            foreach($template_attributes as $tattr) {
+                $a=[];
+                if(isset($abyname[$tattr->name])) {
+                    $a = $abyname[$tattr->name];
+                }
+                else {
+                    $a=[
+                        "value"=>$tattr->getValue($tattr,null)
+                    ];
+                }
+                $a['name']=$tattr->name;
+                $a['item_id']=$obj['id'];
+                $a['type']=$tattr->type;
+                $a['remark']=null;
+                $a['sorting']=$tattr->sorting;
+
+                // do not save the computed values
+                if(!in_array($a['type'], ['byear','category'])) {
+                    $newlist[]=$a;
+                }
+            }
+
+            $obj['attributes']=$newlist;
+        }
+
         return parent::saveFromObject($obj);
     }
 
@@ -310,5 +438,23 @@
             }
         }            
         return array("error"=>true,"messages"=>"Failed to softdelete");
+    }
+
+    public function templateByType($type) {
+        $sql=$this->select('*')->from($this->table)->where("type","template")->where("name",$type)->get();
+        if(!empty($sql) && is_array($sql) && sizeof($sql)>0) {
+            return new Item($sql[0]);
+        }
+        return null;
+    }
+
+    public function getTemplate() {
+        if($this->type === "template") return $this;
+        return $this->templateByType($this->type);
+    }
+
+    private function updateRangeSets($newrange,$oldrange) {
+        $model=$this->createModel("Presence");
+        $model->updateRangeSets($this,intval($newrange));
     }
 }

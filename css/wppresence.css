@@ -17,28 +17,12 @@
 
 .entry-content #wppresence-frontend .fullwidth { width: 100%; }
 
-.entry-content #wppresence-frontend ul {
-    list-style-type: none;
-    margin: 0 0 10px 0;
-}
-
-.entry-content #wppresence-frontend ul li {
-    margin: 0;
-    display: flex;
-    align-items: center;
-    position: relative;
-}
-.entry-content #wppresence-frontend ul li.absent {
+.entry-content #wppresence-frontend table tr.absent {
     background-color: #ffaaaa;
 }
 
-.entry-content #wppresence-frontend ul li label {
-    margin-bottom: 0;
-    margin-left: 10px; 
-}
-.entry-content #wppresence-frontend ul li span.icon { margin-left:auto; }
-
-.entry-content #wppresence-frontend ul li span.icon a i { padding: 2px 4px; }
+.entry-content #wppresence-frontend table tr span.icon a i { padding: 2px 4px; }
+.entry-content #wppresence-frontend table tr span.icon a i.absent { opacity: 0.5; }
 
 #wppresence-frontend div.container h4 { margin-bottom: 0.2rem; }
 
@@ -59,3 +43,25 @@
 }
 
 .groupcheck { width: 1px; }
+.entry-content #wppresence-frontend table.groupitems tr.mark-none {}
+.entry-content #wppresence-frontend table.groupitems tr.mark-red {
+    background-color: #ff4444;
+}
+.entry-content #wppresence-frontend table.groupitems tr.mark-green {
+    background-color: #44ff44;
+}
+.entry-content #wppresence-frontend table.groupitems tr.mark-blue {
+    background-color: #4444ff;
+}
+
+.entry-content #wppresence-frontend table.presence td.field,
+.entry-content #wppresence-frontend table.presence th.field {
+    border: solid 1px black;
+    border-width: 0px 1px;
+}
+
+.entry-content #wppresence-frontend table.presence .row-odd { 
+    background-color: #ccc;
+}
+
+.entry-content #wppresence-frontend table.presence .field { text-align: center;}

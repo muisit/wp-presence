@@ -49,8 +49,7 @@
                 $this->read($id);
             }
             else {
-                $this->{$this->pk} = $id;
-                $this->_state="pending";
+                $this->setKey($id);
             }
         }
         if(sizeof($this->fieldToExport) == 0) {
@@ -165,6 +164,10 @@
         }
         // save attached objects
         $this->postSave();
+
+        foreach($this->fields as $field) {
+            $this->_ori_fields[$field] = $this->$field;
+        }
 
         return true;
     }
@@ -322,7 +325,7 @@
     }
 
     public function saveFromObject($obj) {
-        //error_log('save from object using data '.json_encode($obj));
+        error_log('save from object using data '.json_encode($obj));
         require_once(__DIR__ . "/validator.php");
         $validator = new Validator($this);
 
@@ -343,6 +346,10 @@
         require_once(__DIR__ . "/".strtolower($name).".php");
         $cname = "\\WPPresence\\".$name;
         return $cname;
+    }
+    public function createModel($name) {
+        $cname=$this->loadModel($name);
+        return new $cname();
     }
 }
  

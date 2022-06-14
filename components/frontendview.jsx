@@ -33,7 +33,7 @@ export default class FrontendView extends React.Component {
     }
 
     sortItemsByIndex = (items, sorters, idx, itemsById) => {
-        //console.log("sorting items by index ",sorters,idx);
+        console.log("sorting items by index ",sorters,idx,itemsById);
         var retval={};
         var sorter=sorters[idx];
         // if the index is passed the list of sorters, we sort the remaining items
@@ -59,20 +59,25 @@ export default class FrontendView extends React.Component {
             for(var i in items) { 
                 var id=items[i];       
                 var item=itemsById[id];
-                var key=item.data[sorter];
-                if(!key) {
-                    //console.log('key not found, setting to undefined');
-                    // no attribute found, make sure we sort all such items
-                    // together as 'undefined'
-                    key='undefined';
+                if(item) {
+                    var key=item.data[sorter];
+                    if(!key) {
+                        //console.log('key not found, setting to undefined');
+                        // no attribute found, make sure we sort all such items
+                        // together as 'undefined'
+                        key='undefined';
+                    }
+                    // if the sorting value is not known yet, add it to the list of keys
+                    if(!templist[key]) {
+                        templist[key]=[];
+                        keylist.push(key);
+                    }
+                    // store the item in the list of items with the same attribute value
+                    templist[key].push(item.id);
                 }
-                // if the sorting value is not known yet, add it to the list of keys
-                if(!templist[key]) {
-                    templist[key]=[];
-                    keylist.push(key);
+                else {
+                    console.log("missing item for id ",i);
                 }
-                // store the item in the list of items with the same attribute value
-                templist[key].push(item.id);
             }
             // sort by attribute value
             keylist.sort();
@@ -95,80 +100,93 @@ export default class FrontendView extends React.Component {
         return retval;
     }
 
-
-    show = (templ) => {
-        var dt=this.state.date;
-        api_list(this.abortType, 'item', { pagesize: 0, filter: { type: templ.name }, special: "with attributes/with presence "+dt})
-            .then((res) => {
-                // see if we have a sorter in the templates
-                // also look for computed fields BYear and Category
-                console.log("parsing list result of template ", templ);
-                var sortBy=[];
-                var compfields={};
-                for (var i in templ.attributes) {
-                    var attr = templ.attributes[i];
-                    if(attr.remark && attr.remark.groupBy) {
-                        sortBy.push(attr.name);
-                    }
-                    if(attr.type == 'byear' || attr.type == 'category') {
-                        console.log("pushing computed field ",attr);
-                        if(!compfields[attr.value]) {
-                            compfields[attr.value]=[];
-                        }
-                        compfields[attr.value].push(attr);
-                    }
+    addElementsToList = (lst,templ,mergewith) => {
+        // see if we have a sorter in the templates
+        // also look for computed fields BYear and Category
+        console.log("parsing list result of template ", templ);
+        var sortBy=[];
+        var compfields={};
+        for (var i in templ.attributes) {
+            var attr = templ.attributes[i];
+            if(attr.remark && attr.remark.groupBy) {
+                sortBy.push(attr.name);
+            }
+            if(attr.type == 'byear' || attr.type == 'category') {
+                console.log("pushing computed field ",attr);
+                if(!compfields[attr.value]) {
+                    compfields[attr.value]=[];
                 }
-                // map all attributes of each item back onto the item
-                var items = [];
-                var itemsById={};
-                for(var i in res.data.list) {
-                    var item={
-                        original: res.data.list[i],
-                        data: {},
-                        id: res.data.list[i].id
-                    };
+                compfields[attr.value].push(attr);
+            }
+        }
+        // map all attributes of each item back onto the item
+        var items = [];
+        var itemsById={};
+        for(var i in lst) {
+            var item={
+                original: lst[i],
+                data: {},
+                id: lst[i].id
+            };
 
-                    if (item.original.attributes) {
-                        for (var j in item.original.attributes) {
-                            var attr = item.original.attributes[j]
-                            item.data[attr.name]=attr.value;
-                        }
-                        // we do not need the original list of attributes, so clean up some memory
-                        delete item.original.attributes;
-                    }
+            if (item.original.attributes) {
+                for (var j in item.original.attributes) {
+                    var attr = item.original.attributes[j]
+                    item.data[attr.name]=attr.value;
+                }
+                // we do not need the original list of attributes, so clean up some memory
+                delete item.original.attributes;
+            }
 
-                    // calculate computed fields
-                    var keys=Object.keys(compfields);
-                    if(keys.length) {
-                        keys.map((key) => {
-                            var fields = compfields[key];
-                            var value = item.data[key];                            
-                            console.log("computed field ",fields,value);
-                            if(value) {
-                                fields.map((field) => {
-                                    if (field.type == 'byear') {
-                                        var dt = new Date(value);
-                                        console.log("computed field byear says ", dt.getFullYear());
-                                        item.data[field.name] = dt.getFullYear();
-                                    }
-                                    else if (field.type == 'category') {
-                                        item.data[field.name] = date_to_category(value);
-                                    }
-                                });
+            // calculate computed fields
+            var keys=Object.keys(compfields);
+            if(keys.length) {
+                keys.map((key) => {
+                    var fields = compfields[key];
+                    var value = item.data[key];                            
+                    console.log("computed field ",fields,value);
+                    if(value) {
+                        fields.map((field) => {
+                            if (field.type == 'byear') {
+                                var dt = new Date(value);
+                                console.log("computed field byear says ", dt.getFullYear());
+                                item.data[field.name] = dt.getFullYear();
+                            }
+                            else if (field.type == 'category') {
+                                item.data[field.name] = date_to_category(value);
                             }
                         });
                     }
+                });
+            }
 
-                    if (item.original.presence === 'present' || item.original.presence === 'absent') {
-                        item.data.checked=true;
-                    }
-                    console.log("pushing item ",item);
-                    items.push(item.id);
-                    itemsById[item.original.id] = item;
-                }
+            if (item.original.presence === 'present' || item.original.presence === 'absent') {
+                item.data.checked=true;
+            }
+            console.log("pushing item ",item);
+            items.push(item.id);
+            itemsById[item.original.id] = item;
+        }
 
-                items=this.sortItemsByIndex(items, sortBy,0, itemsById);
-                this.setState({template: templ, items: items, itemsById: itemsById});
+        if(mergewith) {
+            var keys=Object.keys(mergewith);
+            keys.map((key) => {
+                items.push(key);
+                itemsById[key]=mergewith[key];
+            });
+            console.log("items is ",items);
+            console.log("items by id is ",itemsById);
+        }
+
+        items=this.sortItemsByIndex(items, sortBy,0, itemsById);
+        this.setState({template: templ, items: items, itemsById: itemsById});
+    }
+
+    show = (templ) => {
+        var dt=this.state.date;
+        api_list(this.abortType, 'item', { pagesize: 0, filter: { type: templ.name, template: templ.id }, special: "with attributes/with presence "+dt})
+            .then((res) => {
+                this.addElementsToList(res.data.list,templ);
             });        
     }
 
@@ -252,6 +270,7 @@ export default class FrontendView extends React.Component {
 
     retrievePresenceForDate = (date) => {
         //console.log("retrieving presence for date ",date);
+        var range = this.state.template.config && this.state.template.config.range ? parseInt(this.state.template.config.range) : 1;
         return api_list(this.abortType,'presence',{ pagesize: 0, filter: { type: this.state.template.name }, special: "full presence "+date})
             .then((res) => {
                 //console.log("received response");
@@ -262,15 +281,30 @@ export default class FrontendView extends React.Component {
                         var pres = res.data.list[i];
                         //console.log("presence record is ",pres);
                         var key = moment(pres.created).format("MM DD");
+                        if(range > 360) key = moment(pres.created).format("YYYY");
+                        else if(range > 180) {
+                            key = parseInt(moment(pres.created).format("MM"));
+                            if(key < 7) key="S1";
+                            else key="S2";
+                        }
+                        else if(range > 90) {
+                            key = parseInt(moment(pres.created).format("MM"));
+                            if(key < 4) key="Q1";
+                            else if(key < 7) key="Q2";
+                            else if(key < 10) key="Q3";
+                            else key="Q4";
+                        }
+                        else if(range > 30) key=moment(pres.created).format("MM");
+
                         //var key = pad(dt.getMonth() + 1) + ' ' + pad(dt.getDate());
                         
-                        //console.log("key is ",key);
+                        console.log("key is ",key);
                         if(!allpresence[key]) {
                             allpresence[key]=[];
                         }
                         allpresence[key] = this.addIfNotPresent(pres,key,allpresence[key]);
                     }
-                    //console.log("allpresence of this bracket is ",allpresence);
+                    console.log("allpresence of this bracket is ",allpresence);
                     return allpresence;
                 }
                 return this.state.presence_list;
@@ -287,6 +321,34 @@ export default class FrontendView extends React.Component {
         return retval;
     }
 
+    findMissingPeople = (presence,cb) => {
+        var allids={};
+        var keys = Object.keys(presence);
+        keys.map((itm) => {
+            var bracket=presence[itm];
+            bracket.map((b)=> {
+                console.log("bracket is ",b);
+                if(!this.state.itemsById[b.item]) {
+                    allids[b.item]=true;
+                }
+    
+            });
+        });
+        console.log("missing ",Object.keys(allids));
+        var ids=Object.keys(allids);
+        if(ids.length>0) {
+            api_list(this.abortType, 'item', { pagesize: 0, filter: { all: true, type: this.state.template.name, template: this.state.template.id, ids: ids }, special: "with attributes"})
+                .then((res) => {
+                    console.log("adding elements to list, merging with ",this.state.itemsById);
+                    this.addElementsToList(res.data.list,this.state.template,this.state.itemsById);
+                    cb();
+                });
+        }
+        else {
+            cb();
+        }
+    }
+
     showPresenceList= () => {
         //console.log("show presence list view");
         // retrieve a list of presence dates 
@@ -294,7 +356,7 @@ export default class FrontendView extends React.Component {
             .then((lst) => {
                 //console.log("setting state");
                 var presence = this.mergePresence(Object.assign({},this.state.presence_list,lst));
-                this.setState({"show_list":true, presence_list:presence});
+                this.findMissingPeople(presence, ()=> this.setState({"show_list":true, presence_list:presence}));
             });
     }
 

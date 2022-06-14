@@ -67,8 +67,10 @@ export default class PagedTab extends React.Component {
         for(var i=0;i<sorting.length;i++) {
             if(sorting[i] && sorting[i].field) {
                 var c = this.fieldToSorter(sorting[i].field);
-                if(sorting[i].order < 0) c=c.toUpperCase();
-                newsort+=c;
+                if(c) {
+                    if(sorting[i].order < 0) c=c.toUpperCase();
+                    newsort+=c;
+                }
             }
         }
         if(!newsort.length) newsort="i";

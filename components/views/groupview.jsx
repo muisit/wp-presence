@@ -32,14 +32,20 @@ export default class GroupView extends React.Component {
     render() {
         if(this.props.group.length > 0) {
             var displayfields=[];
+            var markfields=[];
             this.props.template.attributes.map((attr) => {
                 if(attr.remark && attr.remark.display === true) {
                     displayfields.push(attr);
                 }
+                if(attr.remark && attr.remark.mark) {
+                    markfields.push(attr);
+                }
             });
+
             var items=this.props.group.map((id) => {
                 var itm=this.props.byId[id];
                 itm._display=[];
+                itm._marks="";
                 displayfields.map((field) => {
                     if(itm.data[field.name]) {
                         itm._display.push(itm.data[field.name]);
@@ -48,13 +54,19 @@ export default class GroupView extends React.Component {
                         itm._display.push('');
                     }
                 });
+                markfields.map((field) => {
+                    // only works on checkboxes
+                    if(itm.data[field.name] == 'yes') {
+                        itm._marks+=" "+field.remark.mark; // add remark class
+                    }
+                });
                 return itm;
             });
             return (
                 <table className='groupitems'>
                     <tbody>
                     {items.map((el,idx2) => (
-                        <tr key={this.props.idx + idx2} className={el.original.presence}>
+                        <tr key={this.props.idx + idx2} className={el.original.presence + el._marks}>
                             <td className='groupcheck'><Checkbox inputId={this.props.idx + '#' + idx2} onChange={(e) => this.markPresence('present', el, e.target.checked)} checked={el.data.checked} /></td>
                             <td><label htmlFor={this.props.idx+'#'+idx2}>{el.original.name}</label></td>
                             {el._display && el._display.length>0 && el._display.map((dsp,idx) => (
@@ -62,7 +74,7 @@ export default class GroupView extends React.Component {
                             ))}
                             <td className='groupcheck'>
                                 <span className="icon">
-                                  <a onClick={(e) => this.markPresence('absent', el,true)}><i className="pi pi-thumbs-down" /></a>
+                                  <a onClick={(e) => this.markPresence('absent', el,true)}><i className={"pi pi-thumbs-down " + el.original.presence} /></a>
                                 </span>
                             </td>
                             <td className='groupcheck'>

@@ -26,7 +26,8 @@ export default class GenericTab extends PagedTab {
     }
 
     fieldToSorter = (fld) => {
-        return fieldToSorterList[fld];
+        if(fieldToSorterList[fld]) return fieldToSorterList[fld];
+        return fld;
     }
 
     toastMessage = (type,item) => {
@@ -44,6 +45,12 @@ export default class GenericTab extends PagedTab {
         this.setState({item: {id:-1, type: this.props.template.name, state:'new',attributes:attrs},displayDialog:true});
     }
 
+    onDownload = (event) => {
+        var href = wppresence.url + "&model=" + this.props.template.name+'&nonce='+wppresence.nonce;
+        console.log("opening ",href);
+        window.open(href);
+    }
+
     onEdit = (event)=> {
         var item = Object.assign({},event.data);
         api_list(this.abortType,"eva",{filter: { item_id: item.id}})
@@ -54,6 +61,13 @@ export default class GenericTab extends PagedTab {
                 }
             });
         return false;
+    }
+
+    renderAdd() {
+        return (<span className="p-input-icon-left header-button">
+            <a onClick={this.onAdd}><i className="pi pi-plus-circle">Add</i></a>&nbsp;|&nbsp;
+            <a onClick={this.onDownload}><i className="pi pi-download">Download</i></a>&nbsp;&nbsp;
+        </span>);
     }
 
     renderDialog() {

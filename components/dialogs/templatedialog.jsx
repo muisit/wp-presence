@@ -5,6 +5,7 @@ import { Dialog } from 'primereact/dialog';
 import { Dropdown } from 'primereact/dropdown';
 import { Checkbox } from 'primereact/checkbox';
 import { InputText } from 'primereact/inputtext';
+import { InputNumber } from 'primereact/inputnumber';
 
 export default class TemplateDialog extends React.Component {
     constructor(props, context) {
@@ -61,12 +62,14 @@ export default class TemplateDialog extends React.Component {
         this.close();
     }    
 
-    onChangeEl = (event) => {
-        if(!event.target) return;
+    onChangeEl = (name,value) => {
+        console.log(name,value);
         var item=Object.assign({},this.props.value);
-        switch(event.target.name) {
-        case 'name': item[event.target.name] = event.target.value; break;
+        switch(name) {
+        case 'name': item[name] = value; break;
+        case 'range': item.config = Object.assign({},item.config, { range: parseInt(value)}); break;
         }
+        console.log(item);
         if (this.props.onChange) this.props.onChange(item);
     }
 
@@ -89,8 +92,10 @@ export default class TemplateDialog extends React.Component {
                         return null;
                     }
                     else {
+                        console.log('copying item ',item);
                         var newitem=Object.assign({remark:{}},item);
-                        if(field == "groupBy" || field=="display") {
+                        if(!newitem.remark) newitem.remark={};
+                        if(field == "groupBy" || field=="display" || field=="mark") {
                             newitem.remark[field]=value;
                         }
                         else {
@@ -179,14 +184,36 @@ export default class TemplateDialog extends React.Component {
             {name: 'Enum', value: 'enum' }, // enumeration
             {name: 'BYear', value: 'byear' }, // calculated field
             {name: 'Category', value: 'category'}, // calculated field
+            {name: 'Checkbox', value: 'check' }, // yes/no checkbox
         ];
 
-        var lastattr=this.props.value.attributes ? this.props.value.attributes.length : 0;
+        const markvalues = [
+            { name: 'None', value: 'mark-none'},
+            { name: 'Red', value: 'mark-red'},
+            { name: 'Green', value: 'mark-green' },
+            { name: 'Blue', value: 'mark-blue' },
+        ];
+
+        const ranges=[
+            {name: 'Day', value: 1},
+            {name: 'Month', value: 31},
+            {name: 'Quarter', value: 92},
+            {name: 'Half Year', value: 183},
+            {name: 'Year', value: 366}
+        ];
+        var range= this.props.value.config && this.props.value.config.range ? parseInt(this.props.value.config.range) : 1;
+
         return (<Dialog header="Edit Template" position="center" visible={this.props.display} style={{ width: '50vw' }} modal={true} footer={footer} onHide={this.onCancelDialog}>
       <div>
         <label>Name</label>
         <div className='input'>
-            <InputText name='name' value={this.props.value.name} onChange={this.onChangeEl} placeholder='Name'/>
+            <InputText name='name' value={this.props.value.name} onChange={(e)=>this.onChangeEl('name',e.target.value)} placeholder='Name'/>
+        </div>
+      </div>
+      <div>
+        <label>Presence Range</label>
+        <div className='input'>
+          <Dropdown appendTo={document.body} name='range' optionLabel="name" optionValue="value" value={range} options={ranges} placeholder="Range" onChange={(e) => this.onChangeEl('range', e.target.value)}/>
         </div>
       </div>
       {this.props.value.attributes && this.props.value.attributes.map((attr,idx) => (
@@ -197,7 +224,8 @@ export default class TemplateDialog extends React.Component {
               <Dropdown appendTo={document.body} name={'type'+idx} optionLabel="name" optionValue="value" value={attr.type} options={types} placeholder="Type" onChange={(e) => this.onChangeAttr('set', 'type', attr,idx,e.target.value)}/>            
             </div>
             <div className='input'>
-              <InputText name={'default'+idx} value={attr.value} onChange={(e) => this.onChangeAttr('set','value', attr,idx,e.target.value)} placeholder='Default'/>
+              {attr.type != 'check' && (<InputText name={'default'+idx} value={attr.value} onChange={(e) => this.onChangeAttr('set','value', attr,idx,e.target.value)} placeholder='Default'/>)}
+              {attr.type == 'check' && (<Dropdown appendTo={document.body} name={'mark' + idx} optionLabel="name" optionValue="value" options={markvalues} value={attr.remark ? attr.remark.mark : ''} onChange={(e) => this.onChangeAttr('set', 'mark', attr, idx, e.target.value)} />)}
             </div>
             <div className='input'>
               <Checkbox inputId={'group'+idx} checked={attr.remark && attr.remark.groupBy} onChange={(e) => this.onChangeAttr('set','groupBy', attr,idx,e.checked)}/>

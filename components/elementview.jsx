@@ -4,6 +4,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { InputText } from 'primereact/inputtext';
 import { InputNumber } from 'primereact/inputnumber';
 import { Calendar } from 'primereact/calendar';
+import { Checkbox } from 'primereact/checkbox';
 import { format_date } from './functions';
 
 export default class ElementView extends React.Component {
@@ -20,7 +21,7 @@ export default class ElementView extends React.Component {
             newitem.changed=true;
         }
         else {
-            console.log("adjusting attribute data");
+            console.log("adjusting attribute data",attr,value);
             if(isdate) {
               value = format_date(value);
             }
@@ -47,6 +48,7 @@ export default class ElementView extends React.Component {
           </div>
               {attrs.map((attr,idx) => {
                 var value = this.props.item.data && this.props.item.data[attr.name] ? this.props.item.data[attr.name] : '';
+                console.log("value is ",attr,value);
                 return (
           <div className='attribute' key={idx}>
             <label>{attr.name}</label>
@@ -56,16 +58,16 @@ export default class ElementView extends React.Component {
                 <InputText className="fullwidth" value={value} onChange={(e) => this.onChangeAttr(attr,e.target.value)}/>
               )}
               {attr && attr.type === 'number' && (
-                <InputNumber className='inputint fullwidth' onChange={(e) => this.onChangeAttr(attr,e.target.value)}
+                <InputNumber className='inputint fullwidth' onChange={(e) => this.onChangeAttr(attr,e.value)}
                 mode="decimal" inputMode='decimal' minFractionDigits={1} maxFractionDigits={5} min={0} useGrouping={false}
                 value={value}></InputNumber>
               )}
               {attr && attr.type === 'int' && (
-                <InputNumber className='inputint fullwidth' onChange={(e) => this.onChangeAttr(attr,e.target.value)}
+                <InputNumber className='inputint fullwidth' onChange={(e) => this.onChangeAttr(attr,e.value)}
                 mode="decimal" useGrouping={false} value={value}></InputNumber>
               )}
               {attr && attr.type === 'year' && (
-                <InputNumber className='inputint fullwidth' onChange={(e) => this.onChangeAttr(attr,e.target.value)}
+                <InputNumber className='inputint fullwidth' onChange={(e) => this.onChangeAttr(attr,e.value)}
                 min={1900} max={2100} mode="decimal" useGrouping={false} value={value}></InputNumber>
               )}
               {attr && attr.type === 'date' && (
@@ -74,6 +76,9 @@ export default class ElementView extends React.Component {
               )}
               {attr && attr.type === 'enum' && (
                 <Dropdown className='fullwidth' appendTo={document.body} onChange={(e) => this.onChangeAttr(attr,e.value)} options={attr.value.split(' ')} value={value}></Dropdown>
+              )}
+              {attr && attr.type === 'check' && (
+                <Checkbox checked={value=='yes'} onChange={(e) => this.onChangeAttr(attr, e.checked?"yes":"no")} />
               )}
               </div>
             </div>

@@ -30,7 +30,7 @@
  class Presence extends Base {
     public $table = "wppres_presence";
     public $pk="id";
-    public $fields=array("id","item_id","created","state","creator");
+    public $fields=array("id","item_id","created","state","creator","rangeset");
     public $rules=array(
         "id" => "skip",
         "item_id" => "required|int|model=Item",
@@ -38,6 +38,7 @@
         "creator" => "skip",
         "state" => "required|trim|max=20",
         "remark" => "trim",
+        "rangeset"=>"skip"
     );
 
     public function __construct($id=null) {
@@ -65,16 +66,58 @@
     }
 
     private function addFilter($qb, $filter,$specials) {
+        $item=null;
         if(isset($filter["item_id"])) {
-            $qb->where("item_id",intval($filter["item_id"]));
+            error_log("item id is set");
+            $cname=$this->loadModel('Item');
+            $item=new $cname($filter["item_id"]);
+            if(!empty($item)) {
+                $item->load();
+                if(!$item->isNew()) {
+                    $qb->where("item_id",$item->getKey());
+                }
+                else {
+                    return;
+                }
+            }
+        }
+
+        if(isset($filter["type"])) {
+            error_log("type is set");
+            $cname=$this->loadModel('Item');
+            $model=new $cname();
+            $item = $model->templateByType($filter['type']);
         }
 
         foreach($specials as $special_str) {
             if(strpos($special_str,"full presence") === 0) {
                 $withpresence = strftime('%F',strtotime(substr($special_str,14)));
                 error_log("selecting presence around ".$withpresence);
-                $qb->where("created",">",strftime("%F", strtotime($withpresence) - 29*24*60*60));
-                $qb->where("created","<=",strftime("%F", strtotime($withpresence) + 25*60*60));
+                $range=1;
+                if(!empty($item)) {
+                    $cfg=json_decode($item->config);
+                    if($cfg !== FALSE && isset($cfg->range)) {
+                        error_log("found configuration for range ".$item->config);
+                        $range=$cfg->range;
+                    }
+                }
+                error_log("range is $range");
+                $start=31 * 24 * 60 * 60;
+                if($range > 30) {
+                    // months or quarters, show 2 years total
+                    $start = 2 * 365 * 24 * 60 * 60;
+                    if($range > 180) {
+                        // years, half-years: show 10 years
+                        $start = 10 * 365 * 24 * 60 * 60;
+                    }
+                }
+                
+                $qb->where("created",">",strftime("%F", strtotime($withpresence) - $start));
+                $qb->where("created","<=",strftime("%F", strtotime($withpresence) + 2*24*60*60));
+                $qb->where_in("item_id",function($qb2) use($item) {
+                    $qb2->select('id')->from('wppres_item')->where('type',$item->name);                    
+                });
+                $qb->groupBy("id,item_id,state,remark,rangeset");
             }
         }
     }
@@ -97,6 +140,49 @@
         $id = is_object($item) ? $item->id : intval($item);
         $qb = $this->select('*')->where("item_id",$id)->orderBy($this->addSort("C"));
         return $qb->get();
+    }
+
+    public function byItems($ids) {
+        $qb = $this->select('*')->where_in("item_id",$ids)->orderBy($this->addSort("tc"))->where("created",">",strftime("%F %T",time()-365*24*60*60));
+        return $qb->get();
+    }
+
+    public function mark($item, $date, $ispresent,$state) {
+        $template=$item->getTemplate();
+        $rangeset=$template->rangeSet($date);
+        $this->query()->where("item_id",$item->getKey())->where("rangeset",$rangeset)->delete();
+        $user = wp_get_current_user();
+        if($ispresent) {
+           $this->query()->from("wppres_presence")->set(array(
+               "item_id"=>$item->getKey(),
+               "created" => $date,
+               "creator" => ($user && $user->ID) ? $user->ID : -1,
+               "state" => $state,
+               "rangeset"=>$rangeset,
+               "remark" => null 
+           ))->insert();
+        }
+    }
+
+    public function updateRangeSets($item, $range) {
+        // this only works on relatively small sets... for larger sets do no change the range setting
+        $res=$this->select('p.*')->from('wppres_presence p')->join("wppres_item","i","i.id=p.item_id")->where("i.type",$item->name)->get();
+        $ids=array();
+        if(!empty($res)) {
+            foreach($res as $row) {
+                $rangeset = $item->rangeToSet($range,$row->created);
+                error_log("setting rangeset to $rangeset");
+                $this->query()->set("rangeset",$rangeset)->where("id",$row->id)->update();
+                $ids[]=$row->item_id;
+            }
+        }
+
+        $res=$this->select('item_id, max(created) as created, rangeset, count(*) as cnt')->where_in("item_id",$ids)->groupBy("item_id,rangeset")->having("count(*) > 1")->get();
+        if(!empty($res)) {
+            foreach($res as $row) {
+                $this->query()->where("rangeset",$row->rangeset)->where("item_id",$row->item_id)->where("created","<>",$row->created)->delete();
+            }
+        }
     }
 
 }
